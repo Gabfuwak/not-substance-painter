@@ -1,0 +1,108 @@
+:root {
+  --bg: #f5f5f5;
+  --panel: #ffffff;
+  --panel-alt: #fafafa;
+  --line: #d9d9d9;
+  --line-strong: #b5b5b5;
+  --right-panel-width: 320px;
+  --tools-panel-width: 88px;
+  --divider-width: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  min-width: 900px;
+  overflow: hidden;
+  background: var(--bg);
+  color: #1f1f1f;
+  font-family: sans-serif;
+}
+
+#left-panel {
+  width: var(--tools-panel-width);
+  flex: 0 0 var(--tools-panel-width);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+#main-panel {
+  flex: 1 1 auto;
+  min-width: 360px;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+}
+
+#object-viewport,
+#uv-viewport {
+  min-height: 0;
+  background: var(--panel-alt);
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #f2f2f2;
+}
+
+#panel-divider {
+  position: relative;
+  width: var(--divider-width);
+  flex: 0 0 var(--divider-width);
+  cursor: col-resize;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+
+#panel-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  background: var(--line-strong);
+}
+
+#panel-divider:hover,
+#panel-divider:focus-visible,
+body.is-resizing #panel-divider {
+  background: #ededed;
+  outline: none;
+}
+
+#right-panel {
+  width: var(--right-panel-width);
+  flex: 0 0 var(--right-panel-width);
+  min-width: 260px;
+  display: grid;
+  grid-template-rows: minmax(180px, 1fr) minmax(220px, 1.2fr);
+  gap: 1px;
+  background: var(--line);
+  border-left: 1px solid var(--line);
+}
+
+#parts-panel,
+#materials-panel {
+  min-height: 0;
+  background: var(--panel);
+}
+
+body.is-resizing {
+  user-select: none;
+  cursor: col-resize;
+}

@@ -1,59 +1,44 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>3D Painter</title>
-  <link rel="stylesheet" href="css/style.css">
-  <script src="js/script.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="left-panel"></div>
 
-    <div id="tools-panel">
-
+  <div id="main-panel">
+    <div id="object-viewport">
+      <canvas id="object-canvas" width="1080" height="720"></canvas>
+      <!-- todo: make it have a dynamic size (iirc easiest is to have it check size on page creation) -->
     </div>
 
+    <div id="uv-viewport">
+      <canvas id="uv-canvas" width="1080" height="720"></canvas>
+    </div>
+  </div>
 
-    <div id="painting-panel">
+  <div
+    id="panel-divider"
+    role="separator"
+    aria-label="Resize right panel"
+    aria-orientation="vertical"
+    aria-controls="main-panel right-panel"
+    tabindex="0"
+  ></div>
 
-      <div id="mesh-painting">
-
-        <canvas id="mesh-viewport" width="1080" height="720"> </canvas>
-          <!-- todo: make it have a dynamic size (iirc easiest is to have it check size on page creation) -->
-
-
-      </div>
-
-      <div id="uv-painting">
-        <canvas id="uv-viewport" width="1080" height="720"> </canvas>
-      </div>
-
+  <div id="right-panel">
+    <div id="parts-panel">
+      <!-- .obj mesh loader + textures -->
     </div>
 
-
-    <div id="right-panel">
-      <div id="parts-selector">
-
-          <!-- .obj mesh loader + textures -->
-
-      </div>
-
-      <div id="materials-panel">
-        <div id="materials-maker">
-
-          <!-- openPBR specs -->
-
-        </div>
-
-        <div id="materials-selector">
-
-          <!-- already made and saved materials -->
-
-
-        </div>
-
-      </div>
+    <div id="materials-panel">
+      <!-- materials -->
     </div>
+  </div>
 
-
+  <script src="main.js" defer></script>
 </body>
 </html>
