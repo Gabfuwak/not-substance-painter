@@ -3,7 +3,6 @@
   --panel: #ffffff;
   --panel-alt: #fafafa;
   --line: #d9d9d9;
-  --line-strong: #b5b5b5;
   --right-panel-width: 400px;
   --left-panel-width: 88px;
   --main-panel-min-width: 360px;
@@ -42,7 +41,7 @@ body {
 
 #main-panel {
   flex: 1 1 auto;
-  min-width: 360px;
+  min-width: var(--main-panel-min-width);
   display: grid;
   grid-template-rows: 1fr 1fr;
   gap: 1px;
