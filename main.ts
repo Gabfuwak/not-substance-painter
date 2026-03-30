@@ -1,24 +1,29 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const divider = document.getElementById("panel-divider");
-  const rightPanel = document.getElementById("right-panel");
+  const dividerElement = document.getElementById("panel-divider");
+  const rightPanelElement = document.getElementById("right-panel");
 
-  if (!divider || !rightPanel) {
+  if (!(dividerElement instanceof HTMLElement) || !(rightPanelElement instanceof HTMLElement)) {
     return;
   }
+
+  const divider = dividerElement;
+  const rightPanel = rightPanelElement;
 
   const MIN_RIGHT_WIDTH = 260;
   const MAX_RIGHT_WIDTH = 700;
   const MIN_CENTER_WIDTH = 360;
   const KEYBOARD_STEP = 24;
 
-  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const clamp = (value: number, min: number, max: number): number => {
+    return Math.min(Math.max(value, min), max);
+  };
 
-  function getMaxRightWidth() {
+  function getMaxRightWidth(): number {
     const bodyWidth = document.body.getBoundingClientRect().width;
     return Math.max(MIN_RIGHT_WIDTH, Math.min(MAX_RIGHT_WIDTH, bodyWidth - MIN_CENTER_WIDTH));
   }
 
-  function setRightPanelWidth(width) {
+  function setRightPanelWidth(width: number): void {
     const nextWidth = clamp(width, MIN_RIGHT_WIDTH, getMaxRightWidth());
     document.documentElement.style.setProperty("--right-panel-width", `${nextWidth}px`);
     divider.setAttribute("aria-valuemin", String(MIN_RIGHT_WIDTH));
@@ -26,12 +31,12 @@ document.addEventListener("DOMContentLoaded", () => {
     divider.setAttribute("aria-valuenow", String(Math.round(nextWidth)));
   }
 
-  function widthFromPointer(clientX) {
+  function widthFromPointer(clientX: number): number {
     const bodyRect = document.body.getBoundingClientRect();
     return bodyRect.right - clientX;
   }
 
-  function stopResize(pointerId) {
+  function stopResize(pointerId: number): void {
     document.body.classList.remove("is-resizing");
 
     if (divider.hasPointerCapture(pointerId)) {
@@ -41,14 +46,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setRightPanelWidth(rightPanel.getBoundingClientRect().width || 320);
 
-  divider.addEventListener("pointerdown", (event) => {
+  divider.addEventListener("pointerdown", (event: PointerEvent) => {
     event.preventDefault();
     document.body.classList.add("is-resizing");
     divider.setPointerCapture(event.pointerId);
     setRightPanelWidth(widthFromPointer(event.clientX));
   });
 
-  divider.addEventListener("pointermove", (event) => {
+  divider.addEventListener("pointermove", (event: PointerEvent) => {
     if (!divider.hasPointerCapture(event.pointerId)) {
       return;
     }
@@ -56,15 +61,15 @@ document.addEventListener("DOMContentLoaded", () => {
     setRightPanelWidth(widthFromPointer(event.clientX));
   });
 
-  divider.addEventListener("pointerup", (event) => {
+  divider.addEventListener("pointerup", (event: PointerEvent) => {
     stopResize(event.pointerId);
   });
 
-  divider.addEventListener("pointercancel", (event) => {
+  divider.addEventListener("pointercancel", (event: PointerEvent) => {
     stopResize(event.pointerId);
   });
 
-  divider.addEventListener("keydown", (event) => {
+  divider.addEventListener("keydown", (event: KeyboardEvent) => {
     const currentWidth = rightPanel.getBoundingClientRect().width;
 
     if (event.key === "ArrowLeft") {

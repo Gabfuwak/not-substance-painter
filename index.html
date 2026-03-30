@@ -7,7 +7,20 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="left-panel"></div>
+  <div id="left-panel">
+    <button class="tool-button" type="button" aria-label="Move tool">
+      <img src="assets/move-tool.png" alt="" class="tool-icon">
+    </button>
+    <button class="tool-button" type="button" aria-label="Orbit tool">
+      <img src="assets/orbit-tool.png" alt="" class="tool-icon">
+    </button>
+    <button class="tool-button" type="button" aria-label="Brush tool">
+      <img src="assets/brush-tool.png" alt="" class="tool-icon">
+    </button>
+    <button class="tool-button" type="button" aria-label="Select tool">
+      <img src="assets/select-tool.png" alt="" class="tool-icon">
+    </button>
+  </div>
 
   <div id="main-panel">
     <div id="object-viewport">
@@ -39,6 +52,6 @@
     </div>
   </div>
 
-  <script src="main.js" defer></script>
+  <script src="dist/main.js" defer></script>
 </body>
 </html>
