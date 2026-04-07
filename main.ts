@@ -1,5 +1,5 @@
 import { initWebGPU, createPipeline } from './src/renderer';
-import { initCamera, mat4Perspective, mat4LookAt } from './src/camera';
+import { initCamera, initOrbitalControls, mat4Perspective, mat4LookAt } from './src/camera';
 import { load_mesh, _mat4Multiply } from './src/mesh';
 
 async function main() {
@@ -16,6 +16,8 @@ async function main() {
   camera.target   = [0, 0, 0];
   camera.near     = 0.1;
   camera.far      = 100;
+
+  initOrbitalControls(canvas, camera);
 
   const objText = await fetch('assets/cube.obj').then(r => r.text());
   const mesh = load_mesh(objText);

@@ -97,6 +97,71 @@ export function rotatePitch(camera, angle) {
   camera.target[2] = camera.position[2] + (fZ/len) * dist;
 }
 
+// Orbital camera controls — left drag: orbit, middle drag / shift+drag: pan, scroll: zoom
+export function initOrbitalControls(canvas, camera) {
+  const dx0 = camera.position[0] - camera.target[0];
+  const dy0 = camera.position[1] - camera.target[1];
+  const dz0 = camera.position[2] - camera.target[2];
+  let radius = Math.hypot(dx0, dy0, dz0);
+  let phi    = Math.asin(dy0 / radius);       // elevation [-π/2, π/2]
+  let theta  = Math.atan2(dx0, dz0);          // azimuth
+
+  const PHI_LIMIT = Math.PI / 2 - 0.001;
+
+  function syncPosition() {
+    camera.position[0] = camera.target[0] + radius * Math.cos(phi) * Math.sin(theta);
+    camera.position[1] = camera.target[1] + radius * Math.sin(phi);
+    camera.position[2] = camera.target[2] + radius * Math.cos(phi) * Math.cos(theta);
+  }
+
+  let orbiting = false;
+  let panning  = false;
+  let lastX = 0, lastY = 0;
+
+  canvas.addEventListener('mousedown', (e: MouseEvent) => {
+    lastX = e.clientX;
+    lastY = e.clientY;
+    if (e.button === 1) { panning = true; e.preventDefault(); return; }
+    if (e.button === 0 && e.shiftKey) { panning = true; return; }
+    if (e.button === 0) orbiting = true;
+  });
+
+  window.addEventListener('mouseup', () => { orbiting = false; panning = false; });
+
+  window.addEventListener('mousemove', (e: MouseEvent) => {
+    const ddx = e.clientX - lastX;
+    const ddy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    if (orbiting) {
+      theta -= ddx * 0.005;
+      phi   += ddy * 0.005;
+      phi = Math.max(-PHI_LIMIT, Math.min(PHI_LIMIT, phi));
+      syncPosition();
+    } else if (panning) {
+      // Screen-space right and up vectors derived from current spherical angles
+      const right = [Math.cos(theta), 0, -Math.sin(theta)];
+      const upVec = [-Math.sin(phi) * Math.sin(theta), Math.cos(phi), -Math.sin(phi) * Math.cos(theta)];
+      const speed = radius * 0.001;
+      for (let i = 0; i < 3; i++) {
+        camera.target[i] -= right[i] * ddx * speed;
+        camera.target[i] += upVec[i] * ddy * speed;
+      }
+      syncPosition();
+    }
+  });
+
+  canvas.addEventListener('wheel', (e: WheelEvent) => {
+    e.preventDefault();
+    radius *= 1 + e.deltaY * 0.001;
+    radius = Math.max(0.01, radius);
+    syncPosition();
+  }, { passive: false });
+
+  canvas.addEventListener('contextmenu', (e: Event) => e.preventDefault());
+}
+
 // Perspective projection — WebGPU NDC: z in [0, 1], column-major
 export function mat4Perspective(fovY, aspect, near, far) {
   const f  = 1.0 / Math.tan(fovY / 2);
