@@ -1,7 +1,7 @@
 // === renderer.ts ===
 // WebGPU device + rasterizer pipeline
 
-async function initWebGPU(canvas: HTMLCanvasElement) {
+export async function initWebGPU(canvas: HTMLCanvasElement) {
   if (!navigator.gpu) throw new Error("WebGPU not supported");
 
   const adapter = await navigator.gpu.requestAdapter();
@@ -16,11 +16,13 @@ async function initWebGPU(canvas: HTMLCanvasElement) {
   return { device, context, format };
 }
 
-function createPipeline(device: GPUDevice, format: GPUTextureFormat, shaderCode: string) {
+export function createPipeline(device: GPUDevice, format: GPUTextureFormat, shaderCode: string, buffers: GPUVertexBufferLayout[] = []) {
   const module = device.createShaderModule({ code: shaderCode });
   return device.createRenderPipeline({
     layout: "auto",
-    vertex:   { module, entryPoint: "vs" },
+    vertex:   { module, entryPoint: "vs", buffers },
     fragment: { module, entryPoint: "fs", targets: [{ format }] },
+    depthStencil: { format: "depth24plus", depthWriteEnabled: true, depthCompare: "less" },
+    primitive: { topology: "triangle-list", cullMode: "back" },
   });
 }
