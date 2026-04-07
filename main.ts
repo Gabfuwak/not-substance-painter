@@ -2,6 +2,29 @@ import { initWebGPU, createPipeline } from './src/renderer';
 import { initCamera, initOrbitalControls, mat4Perspective, mat4LookAt } from './src/camera';
 import { load_mesh, _mat4Multiply } from './src/mesh';
 
+async function loadTexture(device: GPUDevice, url: string): Promise<GPUTexture> {
+  let imageBitmap: ImageBitmap;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('not found');
+    imageBitmap = await createImageBitmap(await res.blob());
+  } catch {
+    // fallback: 1×1 white pixel
+    const canvas = new OffscreenCanvas(1, 1);
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, 1, 1);
+    imageBitmap = await createImageBitmap(canvas);
+  }
+  const texture = device.createTexture({
+    size: [imageBitmap.width, imageBitmap.height],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture({ source: imageBitmap }, { texture }, [imageBitmap.width, imageBitmap.height]);
+  return texture;
+}
+
 async function main() {
   const canvas    = document.getElementById('object-canvas') as HTMLCanvasElement;
   const mainPanel = document.getElementById('main-panel')!;
@@ -28,6 +51,12 @@ async function main() {
   });
   device.queue.writeBuffer(vertexBuffer, 0, mesh.positions);
 
+  const uvBuffer = device.createBuffer({
+    size: mesh.uvs.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(uvBuffer, 0, mesh.uvs);
+
   const indexBuffer = device.createBuffer({
     size: mesh.indices.byteLength,
     usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
@@ -45,14 +74,25 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const shaderCode = await fetch('shaders/raster.wgsl').then(r => r.text());
+  const [shaderCode, texture] = await Promise.all([
+    fetch('shaders/raster.wgsl').then(r => r.text()),
+    loadTexture(device, 'assets/texture.png'),
+  ]);
+
+  const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
+
   const pipeline = createPipeline(device, format, shaderCode, [
     { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
+    { arrayStride: 8,  attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x2' }] },
   ]);
 
   const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+    entries: [
+      { binding: 0, resource: { buffer: uniformBuffer } },
+      { binding: 1, resource: texture.createView() },
+      { binding: 2, resource: sampler },
+    ],
   });
 
   function frame() {
@@ -79,6 +119,7 @@ async function main() {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.setVertexBuffer(0, vertexBuffer);
+    pass.setVertexBuffer(1, uvBuffer);
     pass.setIndexBuffer(indexBuffer, 'uint32');
     pass.drawIndexed(mesh.indices.length);
     pass.end();
