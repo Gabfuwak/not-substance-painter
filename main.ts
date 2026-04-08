@@ -74,14 +74,16 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [shaderCode, texture] = await Promise.all([
+  const [rasterCode, uvViewCode, texture] = await Promise.all([
     fetch('shaders/raster.wgsl').then(r => r.text()),
+    fetch('shaders/uv_view.wgsl').then(r => r.text()),
     loadTexture(device, 'assets/texture.png'),
   ]);
 
   const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
 
-  const pipeline = createPipeline(device, format, shaderCode, [
+  // --- 3D pipeline ---
+  const pipeline = createPipeline(device, format, rasterCode, [
     { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
     { arrayStride: 8,  attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x2' }] },
   ]);
@@ -95,6 +97,71 @@ async function main() {
     ],
   });
 
+  // --- UV canvas pipeline ---
+  const uvCanvas = document.getElementById('uv-canvas') as HTMLCanvasElement;
+  uvCanvas.width  = mainPanel.clientWidth;
+  uvCanvas.height = mainPanel.clientHeight;
+
+  const uvContext = uvCanvas.getContext('webgpu')!;
+  uvContext.configure({ device, format, alphaMode: 'opaque' });
+
+  // The canvas is mainPanel-sized but only the center half in Y is visible
+  // (same trick as the 3D canvas). Visible area = full width × half height.
+  // UV square must appear square: scaleX * W == scaleY * H (px).
+  // Fit 90% of the smaller visible dimension (W vs H/2).
+  const uvVisibleAspect = uvCanvas.width / (uvCanvas.height / 2); // W / (H/2)
+  const uvState = uvVisibleAspect >= 1
+    ? { scaleX: 0.45 * uvCanvas.height / uvCanvas.width, scaleY: 0.45, offX: 0, offY: 0 }
+    : { scaleX: 0.9,  scaleY: 0.9 * uvCanvas.width / uvCanvas.height, offX: 0, offY: 0 };
+
+  const uvTransformBuffer = device.createBuffer({
+    size: 16, // vec2 scale + vec2 offset
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  // UV view: only UV buffer as vertex input (location 0), no depth
+  const uvPipeline = createPipeline(device, format, uvViewCode, [
+    { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
+  ], false, 'none');
+
+  const uvBindGroup = device.createBindGroup({
+    layout: uvPipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: uvTransformBuffer } },
+      { binding: 1, resource: texture.createView() },
+      { binding: 2, resource: sampler },
+    ],
+  });
+
+  // Pan: drag on UV canvas
+  let uvDragging = false;
+  let uvLastMouse = { x: 0, y: 0 };
+  uvCanvas.addEventListener('mousedown', (e) => {
+    uvDragging = true;
+    uvLastMouse = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!uvDragging) return;
+    uvState.offX += (e.clientX - uvLastMouse.x) / uvCanvas.width  *  2;
+    uvState.offY += (e.clientY - uvLastMouse.y) / uvCanvas.height * -2; // Y flipped
+    uvLastMouse = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('mouseup', () => { uvDragging = false; });
+
+  // Zoom: scroll on UV canvas, centered on cursor
+  uvCanvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const rect = uvCanvas.getBoundingClientRect();
+    const cx = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
+    const cy = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
+    // Keep the point under the cursor fixed: newOffset = cx*(1-factor) + offset*factor
+    uvState.offX = cx * (1 - factor) + uvState.offX * factor;
+    uvState.offY = cy * (1 - factor) + uvState.offY * factor;
+    uvState.scaleX *= factor;
+    uvState.scaleY *= factor;
+  }, { passive: false });
+
   function frame() {
     const view = mat4LookAt(camera.position, camera.target, camera.up);
     const proj = mat4Perspective(camera.fov, camera.aspect, camera.near, camera.far);
@@ -102,7 +169,9 @@ async function main() {
     device.queue.writeBuffer(uniformBuffer, 0, mvp);
 
     const encoder = device.createCommandEncoder();
-    const pass = encoder.beginRenderPass({
+
+    // 3D pass
+    const pass3D = encoder.beginRenderPass({
       colorAttachments: [{
         view: context.getCurrentTexture().createView(),
         clearValue: { r: 0.15, g: 0.15, b: 0.15, a: 1 },
@@ -116,13 +185,34 @@ async function main() {
         depthStoreOp: 'store',
       },
     });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
-    pass.setVertexBuffer(0, vertexBuffer);
-    pass.setVertexBuffer(1, uvBuffer);
-    pass.setIndexBuffer(indexBuffer, 'uint32');
-    pass.drawIndexed(mesh.indices.length);
-    pass.end();
+    pass3D.setPipeline(pipeline);
+    pass3D.setBindGroup(0, bindGroup);
+    pass3D.setVertexBuffer(0, vertexBuffer);
+    pass3D.setVertexBuffer(1, uvBuffer);
+    pass3D.setIndexBuffer(indexBuffer, 'uint32');
+    pass3D.drawIndexed(mesh.indices.length);
+    pass3D.end();
+
+    // Write UV transform
+    device.queue.writeBuffer(uvTransformBuffer, 0,
+      new Float32Array([uvState.scaleX, uvState.scaleY, uvState.offX, uvState.offY]));
+
+    // UV pass
+    const passUV = encoder.beginRenderPass({
+      colorAttachments: [{
+        view: uvContext.getCurrentTexture().createView(),
+        clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1 },
+        loadOp:  'clear',
+        storeOp: 'store',
+      }],
+    });
+    passUV.setPipeline(uvPipeline);
+    passUV.setBindGroup(0, uvBindGroup);
+    passUV.setVertexBuffer(0, uvBuffer);
+    passUV.setIndexBuffer(indexBuffer, 'uint32');
+    passUV.drawIndexed(mesh.indices.length);
+    passUV.end();
+
     device.queue.submit([encoder.finish()]);
     requestAnimationFrame(frame);
   }
