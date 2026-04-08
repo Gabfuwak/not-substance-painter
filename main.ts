@@ -68,6 +68,13 @@ async function main() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
+  // Brush: vec2 uv, f32 radius, f32 active (16 bytes)
+  const brushBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const brushState = { uvX: 0, uvY: 0, radius: 0.05, on: 0 };
+
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: 'depth24plus',
@@ -95,6 +102,7 @@ async function main() {
       { binding: 0, resource: { buffer: uniformBuffer } },
       { binding: 1, resource: texture.createView() },
       { binding: 2, resource: sampler },
+      { binding: 3, resource: { buffer: brushBuffer } },
     ],
   });
 
@@ -143,14 +151,8 @@ async function main() {
   }
 
   let readbackInFlight = false;
-  canvas.addEventListener('click', async (e) => {
-    if (readbackInFlight) return;
-    readbackInFlight = true;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(e.clientX - rect.left);
-    const y = Math.floor(e.clientY - rect.top);
-
+  async function readUVAtPixel(x: number, y: number): Promise<{ hit: boolean; uvX: number; uvY: number }> {
     const copyEncoder = device.createCommandEncoder();
     copyEncoder.copyTextureToBuffer(
       { texture: uvIdTexture, origin: { x, y, z: 0 } },
@@ -158,14 +160,23 @@ async function main() {
       { width: 1, height: 1 },
     );
     device.queue.submit([copyEncoder.finish()]);
+    await stagingBuffer.mapAsync(GPUMapMode.READ);
+    const px = new Float32Array(stagingBuffer.getMappedRange(0, 16));
+    const hit = px[3] > 0;
+    const uvX = hit ? px[0] : -1;
+    const uvY = hit ? px[1] : -1;
+    stagingBuffer.unmap();
+    return { hit, uvX, uvY };
+  }
 
+  canvas.addEventListener('click', async (e) => {
+    if (readbackInFlight) return;
+    readbackInFlight = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor(e.clientX - rect.left);
+    const y = Math.floor(e.clientY - rect.top);
     try {
-      await stagingBuffer.mapAsync(GPUMapMode.READ);
-      const px = new Float32Array(stagingBuffer.getMappedRange(0, 16)); // rgba32float = 4×4 bytes
-      const hit = px[3] > 0;
-      const uvX = hit ? px[0] : -1;
-      const uvY = hit ? px[1] : -1;
-      stagingBuffer.unmap();
+      const { hit, uvX, uvY } = await readUVAtPixel(x, y);
       if (hit) handleUVClick(uvX, uvY);
       else console.log('no hit');
     } catch (e) {
@@ -174,6 +185,25 @@ async function main() {
       readbackInFlight = false;
     }
   });
+
+  canvas.addEventListener('mousemove', async (e) => {
+    if (readbackInFlight) return;
+    readbackInFlight = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor(e.clientX - rect.left);
+    const y = Math.floor(e.clientY - rect.top);
+    try {
+      const { hit, uvX, uvY } = await readUVAtPixel(x, y);
+      brushState.on = hit ? 1 : 0;
+      if (hit) { brushState.uvX = uvX; brushState.uvY = uvY; }
+    } catch {
+      // silently ignore readback errors during hover
+    } finally {
+      readbackInFlight = false;
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
   // --- UV canvas pipeline ---
   const uvCanvas = document.getElementById('uv-canvas') as HTMLCanvasElement;
@@ -208,6 +238,7 @@ async function main() {
       { binding: 0, resource: { buffer: uvTransformBuffer } },
       { binding: 1, resource: texture.createView() },
       { binding: 2, resource: sampler },
+      { binding: 3, resource: { buffer: brushBuffer } },
     ],
   });
 
@@ -256,6 +287,19 @@ async function main() {
     if (uvX < 0 || uvX > 1 || uvY < 0 || uvY > 1) { console.log('no hit'); return; }
     handleUVClick(uvX, uvY);
   });
+
+  uvCanvas.addEventListener('mousemove', (e) => {
+    const rect = uvCanvas.getBoundingClientRect();
+    const clipX = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
+    const clipY = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
+    const uvX = ((clipX - uvState.offX) / uvState.scaleX + 1) / 2;
+    const uvY = (1 - (clipY - uvState.offY) / uvState.scaleY) / 2;
+    const hit = uvX >= 0 && uvX <= 1 && uvY >= 0 && uvY <= 1;
+    brushState.on = hit ? 1 : 0;
+    if (hit) { brushState.uvX = uvX; brushState.uvY = uvY; }
+  });
+
+  uvCanvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
   function frame() {
     const view = mat4LookAt(camera.position, camera.target, camera.up);
@@ -310,6 +354,10 @@ async function main() {
     pass3D.setIndexBuffer(indexBuffer, 'uint32');
     pass3D.drawIndexed(mesh.indices.length);
     pass3D.end();
+
+    // Write brush uniform
+    device.queue.writeBuffer(brushBuffer, 0,
+      new Float32Array([brushState.uvX, brushState.uvY, brushState.radius, brushState.on]));
 
     // Write UV transform
     device.queue.writeBuffer(uvTransformBuffer, 0,
