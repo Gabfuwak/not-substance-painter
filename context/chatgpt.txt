@@ -1,0 +1,1201 @@
+https://chatgpt.com/share/69d7f16a-453c-8392-b6e7-97bac21dbb94
+
+
+
+
+Uploaded image
+Uploaded image
+
+01 — Intro CCU (printable).pdf
+PDF
+
+01 — Intro CCU.pdf
+PDF
+
+02 — Ideation (printable).pdf
+PDF
+
+02 — Ideation.pdf
+PDF
+
+03 — Prototyping Design (printable).pdf
+PDF
+
+03 — Prototyping Design.pdf
+PDF
+
+04 — Predictive Evaluation.pdf
+PDF
+
+05 — Interpretive evaluation.pdf
+PDF
+hello, could you please guide me through making a user interface here? i want a user interface where a user can paint 3d objects, with different brushes, different materials, etc. or even a more challenging setup where we take into account ai new development
+
+Thought for 1m 25s
+Yes. The right way to approach this is not to start from “where do I put the brush buttons,” but from what the application is supposed to let someone do with minimal friction. In your case, the local difficulty is that 3D painting is not one action. It is really four things happening at once: the user is choosing a target on the object, choosing a material or channel to affect, choosing a brush behavior, and judging the result through a 3D view. If the interface does not make those four states visible, the user gets lost very quickly.
+Your sketches already contain the right basic instinct. The center should be the 3D object, because that is where attention belongs. A left side for action and a right side for state also makes sense. The course material you uploaded pushes exactly in that direction: first identify the user and their primary tasks, then explore with low-fidelity sketches, then refine through wireframes and evaluation rather than polishing too early  . That is the right process here.
+
+The first design decision is to separate actions from context. The left side should answer, “What am I doing right now?” The right side should answer, “What am I painting, and where does it go?” If both sides mix tools, layer stacks, material previews, AI suggestions, and object hierarchy all together, the interface will feel dense and arbitrary.
+
+So I would turn your application into three main zones. The center is the viewport, large and dominant. The left is a narrow tool rail plus a contextual tool-options panel. The right is a semantic panel for object parts, materials, channels, and layers. In practice, that means the user clicks Brush on the left, sees brush radius/flow/hardness/projection settings in the adjacent options column, paints in the center, and checks the active material, texture channels, and layer stack on the right.
+
+That distinction matters because different information changes at different speeds. Tool choice changes often. Brush radius changes constantly. Object hierarchy and material assignments change less often. The interface should reflect that tempo. Fast controls should be close to the cursor and visually light. Structural controls should be stable and always in the same place.
+
+If I translate your sketch into a more concrete version, I would make the leftmost vertical strip extremely simple: Select, Brush, Erase, Fill, Mask, Stencil/Projection, Smudge, Material Picker, UV/Edit Seams, and AI Assist. No text by default, just icons with labels on hover. Then the second strip becomes contextual. For Brush, it shows size, opacity, flow, spacing, falloff, symmetry, pressure mapping, projection mode, and channel toggles. For Fill, it shows flood region, tolerance, target layers, and mask options. For AI Assist, it shows prompt, reference image, target region, generation type, and acceptance controls. This follows the “lots of prompting for low experience, concise commands for high experience” principle from your ideation slides: beginners need visible affordances, while experienced users need efficient access rather than explanation .
+
+The center viewport should be treated as a workspace, not as a passive preview. That means it should carry a few lightweight overlays directly on top of the model: brush cursor, symmetry plane indicator, current target channel, temporary material preview toggle, and maybe a small floating HUD for size/opacity that appears while dragging hotkeys. Do not permanently fill the viewport with panels. Users should feel they are painting the object, not managing a dashboard.
+
+The right side is where your second sketch is strongest. “Parts, Material, Layers” is exactly the correct family of information, but it should be ordered carefully. I would put Parts at the top, Material/Channels in the middle, and Layers at the bottom. The reason is operational. First the user decides what part of the model they are affecting. Then they decide what material or channel is active. Then they work non-destructively inside that target using layers.
+
+More concretely, the Parts section should be a tree: Body, Strap, Buckle, Stitching, Eyes, Tail, and so on. It should support solo, lock, hide, and quick selection from the viewport. The Material section should show the active material preview and its channels: base color, roughness, metallic, normal, height, emissive, opacity, whatever your pipeline supports. The Layers section should then be per-channel or shared, depending on your rendering model. The key point is that the user must always be able to answer, at a glance, “I am painting the roughness of the leather material on the strap, on Layer 3.” If that sentence cannot be reconstructed instantly from the UI, the design is not finished.
+
+I would not keep the UV view permanently open at the bottom by default. That is one place where your first sketch is probably too crowded. UVs are important, but they are not the main workspace most of the time. They are a secondary representation. So make the UV editor a collapsible split view or a separate workspace mode. Let users open it when they need seam-aware painting, shell selection, or texture cleanup. Otherwise it will constantly consume space without helping the common case. The prototyping material explicitly distinguishes early focus on high-level concepts from later, more specific layout and look-and-feel decisions , and here the high-level concept is clear: model-first, UV-second.
+
+Now for the harder part: AI. The mistake many interfaces make is to add AI as a separate magic tab. That usually creates mode confusion. The better model is to treat AI as an assistant attached to existing actions. In other words, AI should appear where users already have intent.
+
+There are four AI entry points that make real sense in a 3D painting tool. First, material generation: “Generate a worn yellow lacquer with white scratches” from text or a reference image, producing a starter PBR set. Second, semantic masking: “Select metal buckles,” “isolate seams,” “mask raised areas,” or “segment paws versus cloth.” Third, local paint assistance: texture continuation, fill completion, edge-aware cleanup, seam fixing, and stroke stabilization. Fourth, style or variation suggestions: “make this match the backpack,” “create three roughness variations,” or “age this surface more.” These are useful because they reduce tedious labor while preserving direct control.
+
+The important design rule is that AI outputs should land inside the normal material and layer system. An AI-generated rust mask should become a mask layer the user can inspect, hide, edit, and erase. An AI-generated material should appear as a material asset with editable parameters and textures. If AI writes directly into the object with no trace, users will not trust it. If it becomes just another editable artifact, it becomes usable.
+
+So I would make the AI interface small and local. A compact “Assist” panel can live in the contextual left options strip. It might offer actions like Generate Material, Generate Mask, Inpaint Region, Match Reference, and Describe Selection. Each action asks for a target, such as selected part, selected material, selected UV island, or painted mask. Then the result appears as a non-destructive proposal with Accept, Blend, or Send to New Layer. This keeps AI subordinate to the painting workflow instead of replacing it.
+
+There is also a deeper user-experience issue here. Your uploaded HCI material stresses that you are not the user, and that you should define users, scenarios, and usage criteria before overcommitting to a design  . For your application, I would define at least three personas. One is a beginner or hobbyist who wants to recolor and stylize an asset quickly. One is a more technical artist who needs layered control over channels and materials. One is a concept-oriented user who wants fast AI-assisted exploration before manual cleanup. If you do not design for these separately, you will end up with one overloaded interface that satisfies none of them.
+
+From those personas, you get representative tasks. For example: recolor only the bag strap without touching the body; paint dirt only in creases using a mask; generate a starter leather material from a prompt and then manually refine roughness; project a decal onto a curved surface and fix stretching; export the final texture set. Those are the tasks your interface has to make easy. Your course files recommend working with personas, scenarios, and explicit usability criteria rather than vague taste judgments .
+
+This leads naturally to evaluation. You should not jump from sketch to full implementation. Make three low-fidelity variants first. One can be your current left-tools/right-state layout. Another can put materials at the bottom and layers on the right. A third can use workspace tabs such as Paint, Materials, UV, and AI. Then do a quick heuristic review using standard checks like visibility of system status, user control, consistency, recognition over recall, and minimalist design . After that, run a small think-aloud usability test with a few people doing concrete tasks, because the goal is not whether the UI looks nice, but whether they can actually complete representative operations in context .
+
+A good benchmark task set would be something like this. Change the active material’s base color. Paint scratches only on the buckle. Create a new rust mask from AI and edit it manually. Switch to roughness and make the cloth less glossy. Export textures. These tasks are specific, user-facing, and measurable, which is exactly how the evaluation material frames benchmark tasks and performance measures . Then you measure time, visible confusion, wrong-target errors, undo frequency, and subjective clarity.
+
+If you want my blunt opinion on the layout itself, I would keep the spirit of your second sketch but make it more disciplined. Left: tools. Left-center: contextual options. Center: big viewport. Right: parts, materials/channels, layers. AI is not a giant new region; it is a contextual assistant mode within the same structure. The top bar should stay thin and contain file actions, undo/redo, workspace switching, and maybe a command/search box. That is enough.
+
+The biggest risk for this application is not lack of features. It is hidden state. Users will constantly ask themselves: which object, which material, which channel, which layer, which mask, which projection mode? Your interface succeeds if those answers are always visible and change in predictable places. Once that is stable, brushes, materials, and AI features can grow without the whole thing collapsing.
+
+The next concrete step I would take is to turn this into three task-driven wireframes: one for manual painting, one for material editing, and one for AI-assisted generation plus cleanup. After that, compare them against five benchmark tasks and see where people hesitate.
+
+can you detail more how the right part of the ui works?
+
+Thought for 8s
+Yes. The right side is the part that prevents the painting workflow from becoming ambiguous.
+What that panel is supposed to do is not “show extra settings.” Its real job is to keep the user oriented about the target of the edit. In a 3D painting tool, a stroke is never just a stroke. It always means something like: paint this object part, on this material, in this channel, on this layer, possibly through this mask. The right panel should make that chain explicit.
+
+So I would think of the right side as a stack of four related levels, from coarse to fine. At the top, “what object region am I working on?” Then “what material is assigned there?” Then “what texture channel of that material is active?” Then “what editable layer inside that channel am I modifying?” If those four levels are visually separated and always visible, the whole application becomes much easier to understand.
+
+Let me make that concrete.
+
+At the very top of the right panel, I would put a Parts section. This is a semantic tree of the 3D asset. Not triangles, not low-level mesh buffers, but meaningful units: Body, Strap, Buckle, Eyes, Cloth Trim, Stitching, Tail, and so on. The user should be able to click one of these parts and immediately see three things happen. First, the selected part is highlighted in the viewport. Second, the materials section updates to show the materials assigned to that part. Third, the layers section updates to the currently active material and channel for that part.
+
+The reason Parts must come first is that many users do not think in terms of materials initially. They think, “I want to paint the buckle,” not “I want to edit material slot 3.” So the UI should start from the mental model the user already has. This also gives you clean controls like hide, solo, lock, and select-from-viewport. Hide removes the part visually. Solo isolates it. Lock prevents accidental painting. Select-from-viewport means the user can click directly on the model and the Parts tree jumps to the corresponding node. That synchronization is important. The tree and the viewport must never drift apart.
+
+Below that, I would put the Materials section. This is where the right side shifts from object structure to surface definition. Suppose the selected part is “Strap.” The Materials section might show that Strap uses a material called Leather_01. If the selected part is more complex, it may show several material slots. For example, a backpack flap might use a leather material, a metal rivet material, and a stitching material. The user chooses the active material here.
+
+This section should not just be a name in a list. It should look like a compact card. The card shows a thumbnail sphere or patch preview, the material name, and a few summary attributes: base color, roughness behavior, metallic state, maybe whether normal and height maps are present. Think of it as a quick identity card for the surface. If the user changes the active material, that identity card updates, and the viewport reflects the change immediately.
+
+Now comes the most important sub-layer: channels. A physically based material is not one image. It is a collection of related signals. Base color answers “what is the diffuse/albedo-like color?” Roughness answers “how broad or sharp are the highlights?” Metallic answers “does this behave like metal or dielectric?” Normal adds small geometric detail without changing the mesh. Height or displacement may shift surface relief. Emissive controls light emission. Opacity handles transparency or cutout. So inside the Materials section, I would make the channels visible as tabs or a segmented list.
+
+This matters because when people paint 3D surfaces, a huge amount of confusion comes from not knowing which channel is currently active. If I think I am painting color but I am actually painting roughness, the system feels broken. So the active channel should be visually obvious. The UI should say, in effect, “Active target: Strap → Leather_01 → Roughness → Layer 2.” That sentence is the core of the right panel.
+
+Once a channel is active, the next section is Layers. This is the non-destructive editing stack. It should look somewhat familiar to people who know Photoshop or Substance Painter, but adapted to 3D materials. A layer is not just “some paint.” It is an operation or contribution that modifies the current channel. For example, in the roughness channel, one layer might add wear to edges, another might add grime to recesses, another might be hand-painted gloss breakup. In the base color channel, one layer might be the flat leather color, another might be stains, another scratches, another decal projection.
+
+Each layer row should carry the minimum information needed to understand it. That means visibility, lock, name, thumbnail, blend mode, opacity, and maybe an icon for whether it has a mask. If you want the system to scale, layers should also support folders or groups, because complex materials become unreadable otherwise. But I would not start with too much complexity. A good first version is flat layers plus masks.
+
+The crucial design detail is whether layers are shared across channels or channel-specific. There are two possible models.
+
+The first model is channel-specific layers. That means if the user is in Base Color, they see only the base-color layer stack. If they switch to Roughness, they see a different layer stack. This is simpler conceptually and maps cleanly to “I am editing this channel.” The downside is that the relationship between corresponding color and roughness edits becomes less obvious.
+
+The second model is material-wide layers with per-channel outputs. In that design, a single layer can affect multiple channels at once. For example, a “Leather Wear” layer might brighten color slightly, increase roughness variation, and perturb normals all in one semantic operation. This is more powerful and closer to how advanced texturing tools often work, but it is harder for beginners.
+
+For your application, I would start with a hybrid mental model but present it simply. Let each layer be semantic and able to affect multiple channels, but when the user is viewing a given channel, emphasize the contribution of the layers to that channel. In other words, the user can still think “I am on roughness,” while advanced users can create higher-level material effects that touch several channels consistently.
+
+Now let us talk about what happens when the user clicks a layer. Once a layer is selected, a lower subpanel in the right area should become the Properties inspector for that layer. This inspector is where you show the parameters of the currently selected thing. If the selected item is a paint layer, the inspector shows blend mode, opacity, projection mode, whether it clamps values, and mask controls. If the selected item is a procedural dirt layer, the inspector shows noise scale, curvature influence, cavity sensitivity, directionality, and so on. If the selected item is an AI-generated mask, the inspector shows prompt, seed, affected region, and a confidence or refinement control.
+
+This is a very important separation: the stack tells you what exists, and the inspector tells you how the selected thing behaves. If you dump all parameters directly into each layer row, the right side becomes unusable.
+
+So, operationally, the right panel has this internal flow:
+
+First, choose a part.
+Then choose the material on that part.
+Then choose the channel within that material.
+Then choose the layer inside that channel or material stack.
+Then adjust the selected layer’s properties in the inspector below.
+
+That ordering is not arbitrary. It follows the logic of narrowing the target. From “which object region?” down to “which editable contribution?” This is what keeps the system legible.
+
+Let me walk through a concrete example, because that is where the mechanism becomes clear.
+
+Suppose the user has a stylized backpack model. They click directly on the metal buckle in the viewport. The Parts section highlights Buckle. In Materials, the active material becomes Metal_Brass. The channels show Base Color, Roughness, Metallic, Normal. The user clicks Roughness. The layer stack now shows maybe Base Finish, Finger Smudges, Edge Polish. The user selects Edge Polish. In the inspector below, they adjust opacity and mask softness. Then they paint directly in the viewport with the brush. The stroke is now unambiguous: it affects the roughness of the brass buckle, specifically in the Edge Polish layer. If the result is wrong, the user knows exactly where to look. That is what a good right panel buys you.
+
+Now compare that with a bad design. If the right panel only says “Current Material: Brass” and shows some sliders, while layers are hidden somewhere else and the active channel is unclear, then the user paints, sees an odd result, and has no idea whether the problem is the selected object, the material slot, the channel, or the layer. That is the failure mode you are trying to eliminate.
+
+There is another subtle issue: preview modes. The right panel should let the user preview not only the full material but also individual channels. This is extremely useful in texture authoring. Sometimes color looks fine, but roughness is wrong. Sometimes normals are too strong. So near the channel selector, I would add preview toggles like “show isolated channel,” “solo selected layer,” and “compare before/after.” These do not need to occupy much space, but they matter for inspection. A material tool without inspection support becomes guesswork very quickly.
+
+You also asked about a more challenging setup with AI. The right side is actually the best place to integrate AI in a controlled way, because it already has the semantic hierarchy of the edit target.
+
+For example, imagine an AI-generated material workflow. The user selects the Strap part, then the Leather_01 material. In the Materials section there is an action like Generate Variant. The user types “aged yellow leather with slight cracking.” The AI proposes a new material variant. Instead of overwriting the existing one invisibly, the right panel shows a new candidate material card or a new grouped layer set under the current material. The user can inspect the generated base color, roughness, and normal contributions separately. This keeps AI outputs inspectable.
+
+Or imagine AI-based masking. The user selects the Body part and clicks Generate Mask in the Layers section. They ask for “dust in creases” or “highlight exposed edges.” The result appears as a mask attached to a new layer. In the inspector, the user sees the prompt, threshold, blur, and inversion controls. Again, AI becomes just another editable object in the existing stack. That is the right design. AI should produce layers, masks, or materials inside the same structure the rest of the app uses.
+
+There is also a strong case for adding an Assets subsection, either as a collapsible area in the right panel or as a switchable tab. This is where saved materials, smart brushes, decals, procedural generators, and AI-generated presets live. But I would keep that separate from the active target stack. Assets are resources you can apply. Parts, materials, channels, and layers describe the current edit context. Mixing those two concepts is a common UI mistake.
+
+So if I compress the right side into a clean hierarchy, it would look like this in terms of meaning, not graphics:
+
+At the top: selection context. Which part is active?
+Then: material context. Which material belongs to that part?
+Then: channel context. Which surface signal am I editing?
+Then: edit context. Which layer or mask am I modifying?
+At the bottom: inspector. What are the parameters of that selected layer, mask, or material?
+
+That hierarchy solves most of the conceptual burden.
+
+There are also a few small but high-value details I would add. First, always show a breadcrumb at the top of the right panel, something like Body > Leather_01 > Roughness > Scratches. Second, make locked or hidden states obvious. Third, let users drag materials from an asset library onto parts in the Parts tree or directly onto the viewport. Fourth, provide a tiny real-time preview sphere or patch for the selected material, because a flat thumbnail is often not enough to judge roughness or normal detail. Fifth, allow multi-selection carefully, but do not make it the default. Beginners get lost when one stroke may affect several targets.
+
+If you want a practical first implementation, I would not build the most ambitious version immediately. Start with this simpler right panel:
+
+A Parts tree with hide, solo, and lock.
+A Current Material card with a thumbnail preview.
+A row of channel tabs: Color, Roughness, Metallic, Normal.
+A layer stack for the active channel.
+A property inspector for the selected layer.
+
+That is already enough to make the workflow coherent. After that, you can add masks, smart materials, grouped layers, and AI generation.
+
+The bigger picture is that the right panel is the semantic memory of the application. The center is where the user acts, the left is how they act, and the right is what that action means. If you design the right side well, the whole app starts to feel reliable rather than magical. That is the difference between a toy painting demo and a usable authoring tool.
+
+If you want, I can next sketch a precise right-panel wireframe with labeled sections and a concrete example for a backpack or plush-cat model, including what each row and button would do.
+
+each part can only have one material, or several?
+
+Thought for a second
+Several is the safer answer.
+A “part” and a “material” are two different kinds of things, and it helps to separate them cleanly before deciding how the UI should behave.
+
+A part is a semantic region of the object: strap, buckle, ear, body, sole, zipper, lens frame. It answers “what object region am I talking about?” A material answers “how does that region look and respond to light?” It includes one or more channels such as base color, roughness, metallic, normal, and so on.
+
+Now the local question is: if I select one part in the UI, should that part map to exactly one material, or can it contain several? In a real tool, both situations occur, but if you force only one material per part, you will quickly run into artificial limitations.
+
+Take a small example. Suppose your object is a backpack.
+
+If your parts are defined coarsely as
+Body
+Strap
+Buckle
+
+then maybe each of these can indeed have one material:
+Body -> Cloth
+Strap -> Leather
+Buckle -> Metal
+
+That is the simplest case, and it feels clean.
+
+But now take a slightly richer object. Suppose “Body” includes cloth, stitching, a logo patch, and a plastic zipper border. If you insist that Body has exactly one material, then one of two bad things happens.
+
+Either you split the object into many tiny parts just to satisfy the material system, which clutters the Parts tree and destroys the nice semantic hierarchy.
+
+Or you keep Body as one part, but then you cannot assign different surface definitions inside it, which is too restrictive.
+
+So in practice, a part often needs to support several material assignments.
+
+The clean mental model is this:
+
+A part is a semantic container.
+Inside that part, one or more surface regions can each have a material assignment.
+
+So it is often better to think
+
+part -> one or more material slots
+
+rather than
+
+part -> exactly one material
+
+Let me make that more concrete.
+
+Imagine a stylized shoe.
+
+The user might think in terms of parts like:
+Upper
+Sole
+Laces
+Eyelets
+
+Now consider the “Upper.” It may contain:
+fabric panels
+leather trim
+rubber logo
+stitched seams
+
+If you want the Parts panel to stay understandable, “Upper” should remain a meaningful semantic part. But that semantic part may reference multiple materials:
+Upper
+
+Fabric_01
+Leather_Trim
+Rubber_Logo
+Stitching_Thread
+That is a very reasonable structure.
+So from a UI standpoint, the right panel would work better if it allowed this nesting:
+
+Parts
+Upper
+Materials
+Fabric_01
+Leather_Trim
+Rubber_Logo
+Stitching_Thread
+Sole
+Materials
+Rubber_Sole
+Laces
+Materials
+Cotton_Laces
+
+This lets the user first think semantically, then visually.
+
+There is also a technical reason for allowing several materials per part. In 3D assets, material boundaries are often tied to mesh subsets, face sets, material slots, or submeshes. Those boundaries do not always coincide perfectly with the semantic notion of a “part.” A single logical part may be composed of several mesh regions, each with different shading needs. Your UI should not force the semantic structure and the rendering structure to be identical, because they are related but not the same.
+
+That said, there is a tradeoff. If every part can contain arbitrarily many materials, the UI can become confusing. So the trick is not “allow everything visibly all the time.” The trick is to expose complexity only when needed.
+
+I would recommend this behavior.
+
+At the top level, the Parts panel shows semantic parts only. When the user selects a part, the Materials section below shows the material or materials assigned to that part.
+
+If the part has only one material, the UI stays simple. It just shows one material card.
+
+If the part has several materials, the UI expands into a list of material slots for that part.
+
+So the common simple case remains simple, while the richer case is still supported.
+
+In other words, the interface should behave like this:
+
+If selected part has one material:
+“Current material: Leather_01”
+
+If selected part has several:
+“Materials on this part:
+Leather_01
+Stitching_Thread
+Metal_Ring”
+
+That is much better than forcing a universal one-to-one rule.
+
+There is an even deeper distinction that helps here: ownership versus usage.
+
+A material usually should not be thought of as “belonging” to one part. It is often an asset that can be reused across many parts. For example, the same brass material might be used on several buckles, rings, or decorative studs. So the more accurate relationship is:
+
+a part uses one or more materials,
+and a material can be used by one or more parts.
+
+That is many-to-many at the asset level, even if a specific face region has only one active material assignment at a time.
+
+This matters in the UI because if the user edits Brass_Polished, all parts using that material may update. Sometimes that is exactly what they want. Sometimes they want to make a local variation instead. So the UI should support both “edit shared material” and “make unique copy for this part.”
+
+That is a very important operation in material-painting software.
+
+For example:
+Buckle_A uses Brass_Polished
+Buckle_B uses Brass_Polished
+
+If the user darkens the base color of Brass_Polished, both buckles change.
+
+If the user only wants Buckle_A to differ, they need a command like “duplicate material for this part” or “make local variant.”
+
+So the material system is not only about how many materials a part can have. It is also about whether those materials are shared instances or unique local copies.
+
+For a first version of your app, I would recommend this rule set:
+
+A part may have one or more material assignments.
+Each local surface region is assigned exactly one material at a time.
+Materials are reusable assets and may be shared across parts.
+If a user wants a per-part variation, offer “make unique material” or “create material variant.”
+
+That gives you a system that is both realistic and manageable.
+
+If you want the smallest nontrivial example, here it is.
+
+Suppose Part = “Headband”
+
+Case 1:
+Headband -> Leather_Black
+
+Simple, one material.
+
+Case 2:
+Headband -> Leather_Black, Metal_Studs
+
+Still one semantic part, but two materials.
+
+Case 3:
+Left and right headbands both use Leather_Black
+
+Now editing the material changes both.
+
+Case 4:
+User wants only left headband to be worn out more
+
+So they duplicate:
+Leather_Black -> Leather_Black_Worn_Left
+and assign that only to the left part.
+
+That is the workflow your UI should support.
+
+So my recommendation is: do not design the system around “each part has exactly one material.” Design it around “a part usually has one material, but may have several.” Then keep the interface simple by only exposing the extra complexity when it actually exists.
+
+The larger picture is that parts are for human understanding, while materials are for surface definition. Those two structures overlap, but they are not identical. Your UI will be much more robust if you preserve that distinction.
+
+i want to instead use a model where every material is pbr, and each part has one material, and a part may have subparts
+
+Thought for 1m 1s
+Yes. That is a much cleaner model, and for a first serious UI it is probably the right one.
+What you are proposing is a strict semantic tree:
+
+the asset is decomposed into parts,
+each part has exactly one PBR material,
+a part may contain subparts.
+That immediately removes one of the biggest sources of ambiguity in material-authoring tools, namely the question “am I editing one of several materials on this region, or did I select the wrong material slot?” In your model, when I select a part, there is one active material. That makes the painting target much more legible.
+The main thing to get right is what a “part with subparts” means operationally. There are two possible interpretations.
+
+The first interpretation is that every node in the tree can own geometry directly. In that case, a parent part may have its own faces and material, while also containing child parts with their own faces and materials. That is valid, but it creates one subtle ambiguity: when I click the parent, am I trying to paint the parent’s own surface, or am I conceptually trying to address the whole subtree?
+
+The second interpretation is that internal nodes are mostly semantic groups, and the actual paintable surfaces are the leaves. In that case, a parent part organizes children, but each leaf part is the true material owner.
+
+For your UI, I would recommend a slightly disciplined version of your model:
+
+A part may have children, but every surface triangle belongs to exactly one paintable part. In practice, that means the actual editable target is usually a leaf node. A parent node is still meaningful, but mostly as an organizational and selection unit.
+
+That gives you a very clear invariant. If the user paints, the system knows exactly which PBR material instance is being edited, because the selected paint target is one part, and that part has one material.
+
+A small example makes this clearer. Suppose your stylized cat asset is organized like this:
+
+Cat
+├── Body
+│   ├── Fur
+│   ├── BellyPatch
+│   └── Tail
+├── Hat
+│   ├── Felt
+│   └── Band
+└── Bag
+    ├── Leather
+    └── Buckle
+In this tree, each named node can be a part with one PBR material. If I click Buckle, there is no material ambiguity. I am editing the buckle material. If I click Hat, that is a higher-level semantic selection. The UI can either show a summary of Felt and Band, or it can allow explicit subtree operations, but it should not silently guess which child material I intended to paint.
+That leads directly to how the right side of the UI should work under your model.
+
+At the top of the right panel, I would show the part hierarchy. This is no longer just a loose “parts list.” It becomes the primary semantic navigation system. The user should be able to expand and collapse nodes, lock them, hide them, isolate them, and select them either from the tree or from the viewport. The viewport and the tree must stay synchronized. If the user clicks the bag buckle in 3D, the tree should expand automatically to Bag > Buckle and highlight that node.
+
+Right below that, I would place a compact “selection context” strip. Its job is to state, very plainly, what the current edit target is. For example:
+
+Selected: Bag > Buckle
+
+and, if it is a paintable leaf,
+
+Material: Brass_PBR
+
+This sounds minor, but it is not. A 3D painting app becomes much easier to trust when the current target is always spelled out in one line.
+
+Now, because each part has one material, the material section of the right panel becomes much simpler than in the more general model. You do not need a material-slot list. You only need one material card for the selected part. That card should show a preview sphere, the material name, and maybe a few summary readouts such as whether the material currently has normal, height, emissive, or opacity information. It should also expose actions like duplicate material, make unique, assign another material, save to library, and reset channels.
+
+The next layer down is the PBR structure itself. Since every material is PBR, the user is not editing an arbitrary blob of settings. They are editing a standard set of channels. So the right panel can present a stable channel row such as:
+
+Base Color, Roughness, Metallic, Normal, Height, Emissive, Opacity.
+
+Not every material has to use every channel strongly, but the conceptual model stays consistent. This is very good for usability because the app becomes predictable. The user learns once what a material consists of, and every part follows the same structure.
+
+Now let us be precise about what happens when the user clicks one of these channels. If they click Roughness, the layer stack below should switch to the roughness contribution of the selected part’s material. If they click Base Color, it shows the color layers instead. So the right side is still hierarchical, but in a very clean way:
+
+first choose the part,
+then see its one material,
+then choose the channel of that material,
+then edit the layer stack for that channel.
+
+This is a very strong model because every stroke now has a completely explicit meaning. For example:
+
+Bag > Leather > Roughness > Scratches layer
+
+That sentence is the hidden sentence behind the user’s stroke. A good UI makes that sentence reconstructible at a glance.
+
+Now we need to address the layer question carefully, because once you say “each part has one PBR material,” you still have to decide whether the layers live per channel, or whether one semantic layer can drive several channels at once.
+
+The simplest first implementation is channel-specific layers. In that design, the base color has its own stack, the roughness has its own stack, the normal has its own stack, and so on. This is easy to understand and easy to debug. If the user is looking at roughness, they only see roughness edits. That works very well for a first system.
+
+A more advanced implementation is semantic material layers. For example, one “Leather Wear” layer might simultaneously brighten the base color a little, increase roughness variation, and add a small normal perturbation. That is more powerful, but it is also more abstract, because a single layer contributes to several channels at once.
+
+Given the design direction you are describing, I would start with this compromise: expose the UI as channel-first, because it is clearer, but allow advanced layer types later that can write into multiple channels. In other words, start from the simple inspectable model, not the most flexible one.
+
+There is another point you should decide early, because it affects both the UI and the data model: can two different parts share the same material instance?
+
+I think the answer should be yes. Otherwise you will create a lot of redundant copies. Suppose both ears use the same pink-fabric material. It is useful to let them reference the same material asset. But if the user wants only the left ear to differ, the UI must expose a very explicit command like “Make material unique for this part” or “Create local material variant.” Without that, users will keep editing shared materials by accident and wonder why multiple parts changed.
+
+So under your model, “one material per part” should mean “one active material reference per part,” not necessarily “one unique material object that no other part can use.”
+
+That distinction becomes important in the right panel. If the selected part uses a shared material, the material card should say so. For example, it could show:
+
+Leather_Yellow · shared by 3 parts
+
+Then the user immediately understands the consequence of editing it. If they want a local change, they duplicate it. That is much better than hiding sharing entirely.
+
+Now let us return to parent parts, because this is where the UI can become messy if you do not define behavior sharply.
+
+Suppose the user selects Bag, and Bag has children Leather and Buckle. What should the right panel show?
+
+I would not make the system pretend that Bag has one directly paintable material if, in practice, the paintable surfaces are in the children. Instead, I would make parent selection enter a summary mode.
+
+In summary mode, the right panel shows something like:
+
+Bag
+Subparts:
+
+Leather → Leather_Yellow
+Buckle → Brass_PBR
+and then actions such as isolate subtree, hide subtree, lock subtree, duplicate subtree materials, apply material to all selected children, or select all children with shared material. What I would avoid is letting the user accidentally paint “the parent” when the actual geometry lives across several differently materialed descendants.
+So the behavioral rule I would recommend is:
+
+If a leaf part is selected, the right panel shows one PBR material editor.
+If a non-leaf part is selected, the right panel shows a subtree summary and batch actions, not direct paint editing by default.
+
+That one rule will save you a lot of confusion.
+
+Now let me translate all this into a more concrete right-panel layout.
+
+At the top, you have the part tree. Below it, a breadcrumb for the current node. Below that, either a material editor or a subtree summary depending on whether the node is a leaf.
+
+If it is a leaf, the panel contains:
+
+a material preview card,
+a channel selector,
+a layer stack for the active channel,
+and a property inspector for the selected layer.
+
+If it is a parent, the panel contains:
+
+a list of child parts,
+their material previews,
+shared-state information,
+and batch operations.
+
+This is much cleaner than trying to force one identical panel state for both parents and leaves.
+
+Now let us talk briefly about AI, since you mentioned wanting a more advanced setup that takes new AI developments into account. Your stricter material model actually helps a lot here.
+
+Because each editable part has one PBR material, AI features can plug into a very clear target structure. An AI action is no longer “do something vague to the object.” It becomes one of these:
+
+generate a PBR material for the selected part,
+generate a variation of the selected part’s material,
+generate a mask for one channel of the selected part,
+transfer material style from a reference to the selected part,
+suggest subpart segmentation if the current part is too coarse.
+
+That last one is especially interesting. Under your model, AI is not only a texture generator. It can also help with part decomposition. Suppose the user imports a raw mesh and currently has one big part called Body. An AI-assisted segmentation tool could propose semantic subparts such as fabric, trim, buttons, soles, seams, ears, belly patch, and so on. The user accepts or edits those proposals, and then the whole one-material-per-part workflow becomes much more usable. So AI fits naturally into your design, but as a structuring assistant and material assistant, not as a replacement for the entire editing model.
+
+There is also an export benefit to your structure. If each paintable part has one PBR material, export becomes easier to reason about. Each part can map to a single texture set or a single material package. The user can inspect the UVs and textures per part without asking which subset of channels belongs to which sub-material. This makes debugging simpler too. If a render looks wrong, you know exactly which part and which PBR material to inspect.
+
+The tradeoff, of course, is that you will probably create more parts than in a looser system. That is acceptable, but only if the part tree is good. So you should invest in search, expand/collapse, isolate, select from viewport, move up to parent, move down to child, and maybe a filtered mode like “show only paintable leaves.” Those are not side features. In your model, they are core navigation tools.
+
+So I think your proposed structure is good, but I would phrase it very precisely like this:
+
+The asset is a tree of semantic parts.
+Each paintable part has exactly one active PBR material reference.
+A part may have subparts.
+Only one part is the paint target at a time unless the user explicitly enables multi-part editing.
+Parent parts are primarily grouping and batch-operation nodes; leaf parts are the default direct paint targets.
+Materials may be shared across parts or made unique locally.
+
+That is a disciplined system. It simplifies the UI, keeps painting targets legible, and still leaves room for AI-assisted segmentation and material generation later.
+
+The next useful step would be to design the exact state transitions of the right panel for three cases: selecting a leaf part, selecting a parent part, and selecting a shared material used by multiple parts.
+
+so actually when you talk about painting the layers, it may be like normal, albedo, etc. can we discuss different options, and compare to what we had before as idea for the layers?
+
+Thought for 6s
+Yes. This is exactly the point where the design becomes real, because “layers” can mean very different things depending on what you want the editor to store.
+The object in front of us is now fairly clear: you want a 3D painting application where the user selects a part, that part has one PBR material, and the user edits that material through painting and related operations. The local difficulty is that once you say “the user paints layers,” you still have to answer a more precise question: what is a layer actually a layer of? Is it a layer inside base color only? A layer that affects the whole material? A procedural effect? A mask? A stroke history item? Those are all plausible, but they lead to different UIs and different internal models.
+
+It helps to start from the concrete thing the renderer finally needs. For one selected part, the renderer wants a material that evaluates to something like
+
+M
+=
+{
+C
+,
+R
+,
+M
+t
+,
+N
+,
+H
+,
+E
+,
+O
+}
+M={C,R,M
+t
+​
+ ,N,H,E,O}
+where
+C
+C is base color,
+R
+R is roughness,
+M
+t
+M
+t
+​
+  is metallic,
+N
+N is normal,
+H
+H is height,
+E
+E is emissive, and
+O
+O is opacity if you support it.
+So in the end, for each texel or point on the surface, the application must produce values for these channels. A “layer system” is just a way of saying how those final channel values are built.
+
+There are several serious options.
+
+The most straightforward one is channel-specific layers. In that model, each channel has its own independent stack. Base color has layers. Roughness has layers. Normal has layers. Height has layers. When the user clicks Base Color, they see the color-layer stack. When they click Roughness, they see the roughness-layer stack.
+
+Let us write that in the simplest way. If
+C
+C is the final base color map, then
+
+C
+=
+L
+n
+C
+∘
+L
+n
+−
+1
+C
+∘
+⋯
+∘
+L
+1
+C
+(
+C
+0
+)
+C=L
+n
+C
+​
+ ∘L
+n−1
+C
+​
+ ∘⋯∘L
+1
+C
+​
+ (C
+0
+​
+ )
+and similarly for roughness,
+R
+=
+L
+m
+R
+∘
+L
+m
+−
+1
+R
+∘
+⋯
+∘
+L
+1
+R
+(
+R
+0
+)
+R=L
+m
+R
+​
+ ∘L
+m−1
+R
+​
+ ∘⋯∘L
+1
+R
+​
+ (R
+0
+​
+ )
+Each
+L
+L here is some layer operation: paint, fill, projection, blur, import, procedural noise, and so on. The main point is that the color stack and the roughness stack are separate objects.
+Operationally, this means that if the user paints scratches in the roughness channel, they are literally modifying a roughness layer. If they later switch to base color, they are in another stack. That is very easy to understand. It also makes debugging easy. If the highlights look wrong, inspect the roughness channel. If the silhouette bumps look wrong, inspect the normal or height channel. There is very little hidden coupling.
+
+This model aligns well with what you just said: “painting the layers may be like normal, albedo, etc.” In fact, that is exactly this model. A layer belongs to a channel.
+
+The downside is that real material effects are often cross-channel. Suppose I paint “worn leather edges.” In reality, that one semantic idea probably changes several channels at once. The color may become lighter, the roughness may become more varied, and the normal may pick up micro-abrasion. In a pure channel-specific system, the user has to recreate that wear separately in three different stacks, or the application has to provide tooling to propagate a mask or operation across them. So the model is clear, but it can become repetitive and fragmented.
+
+The second option is material-wide semantic layers. In that model, the stack is not attached to base color or roughness individually. Instead, each layer is a higher-level material contribution that may write to several channels simultaneously.
+
+A simple way to formalize that is to say that a layer outputs a vector of channel deltas:
+
+Δ
+L
+i
+=
+(
+Δ
+C
+i
+,
+Δ
+R
+i
+,
+Δ
+M
+t
+,
+i
+,
+Δ
+N
+i
+,
+Δ
+H
+i
+,
+Δ
+E
+i
+,
+Δ
+O
+i
+)
+ΔL
+i
+​
+ =(ΔC
+i
+​
+ ,ΔR
+i
+​
+ ,ΔM
+t,i
+​
+ ,ΔN
+i
+​
+ ,ΔH
+i
+​
+ ,ΔE
+i
+​
+ ,ΔO
+i
+​
+ )
+and the final material is built by composing those contributions:
+M
+=
+L
+n
+∘
+L
+n
+−
+1
+∘
+⋯
+∘
+L
+1
+(
+M
+0
+)
+M=L
+n
+​
+ ∘L
+n−1
+​
+ ∘⋯∘L
+1
+​
+ (M
+0
+​
+ )
+Here
+M
+0
+M
+0
+​
+  is the base material, and each layer may affect only some channels or many at once.
+This is a more powerful representation of what artists often mean by a “material layer.” A “Dust” layer might slightly desaturate color, raise roughness, and maybe fill crevices through a mask. A “Polish” layer might darken color a bit, reduce roughness, and sharpen some normal detail. A “Rust” layer might change color, roughness, metallic, and height together. One conceptual operation becomes one layer.
+
+This is closer to how people think about surfaces, but it is less transparent. If the user sees a weird highlight, is it because of a roughness-only layer, or because a higher-level dirt layer is also changing roughness? The system is more expressive, but more hidden.
+
+The third option is a hybrid system, and this is the one I think deserves the most attention for your case.
+
+In the hybrid model, the material still exposes explicit channels like Base Color, Roughness, Metallic, Normal, and so on, but layers can be of two kinds.
+
+One kind is channel-local: “this is a roughness paint layer,” “this is a normal detail layer,” “this is a base color decal.”
+
+The other kind is semantic multi-channel: “this is a leather wear layer,” “this is a dust layer,” “this is a rust generator.”
+
+So the internal data model can represent material-wide contributions, but the UI still lets the user inspect results channel by channel. This is important. It preserves the clarity of the channel view while allowing higher-level authoring.
+
+In practice, the right panel might show a single material layer stack, but each layer row would have badges telling you which channels it affects. For example:
+
+Base Fill — affects Color
+Edge Wear — affects Color, Roughness, Normal
+Metalness Fix — affects Metallic
+Dust — affects Color, Roughness
+Scratches — affects Normal, Roughness
+
+Then, when the user clicks the Roughness preview, the stack can either filter visually to emphasize only the roughness contribution or show a channel-solo mode. That gives you inspectability without throwing away semantic grouping.
+
+This hybrid idea is very different from the earlier simpler notion we discussed, where the right side could be “choose channel, then see that channel’s layers.” That earlier idea corresponds to the pure channel-specific model. It is simple and disciplined, and it fits your one-material-per-part structure very well. But it does not capture the fact that many real edits are surface phenomena, not isolated signal edits.
+
+There is another option that sometimes gets conflated with layers, but it is actually different: procedural graphs or node-based material editing. In that model, the final PBR channels are outputs of a graph rather than a stack. The graph may contain noises, blends, masks, triplanar projections, curvature maps, AI-generated textures, and so on.
+
+This is the most general model, because a stack is just a special case of a graph. But for painting-focused interaction, a full graph is usually too much to put at the center of the UI. It is better as an advanced mode or a generated backing representation. If you lead with nodes, you will get enormous flexibility and terrible immediacy. Users who just want to paint a cat ear yellow with rough felt detail will feel like they are authoring a shader compiler.
+
+So I would not make graph editing the primary layer concept, even if procedurally some layers are internally represented that way.
+
+There is also a history-based interpretation of layers. In that design, every stroke or operation is stored as an editable item: brush stroke, fill, projection, AI inpaint, mask generation, procedural dirt pass. That is very appealing from a non-destructive point of view. But it tends to explode in count. Fifty brush strokes become fifty entries. It is powerful for undo and replay, but it is not a good primary authoring abstraction unless you aggressively group strokes into higher-level paint layers.
+
+So I would separate “history” from “layer.” A layer should be a stable editable contribution. A stroke is one operation that may modify that layer.
+
+That distinction matters a lot. If the user says “paint on the scratches layer,” they do not mean “create 800 tiny history nodes.” They mean “the scratches contribution is a named editable surface effect, and my brush adds content into it.”
+
+Now let us compare these options more directly against the earlier idea.
+
+Earlier, once you fixed the model to “one PBR material per part,” the cleanest UI story was:
+
+select part -> see one material -> choose channel -> edit layers for that channel.
+
+This is excellent for legibility. It makes every action explicit. The sentence behind a stroke is something like:
+
+Bag > Leather > Roughness > Scratches Layer
+
+That is extremely good for first implementation and for mental clarity.
+
+The question now is whether that is enough, or whether you want to evolve beyond it.
+
+If your application is mainly about direct texture painting with PBR channels exposed clearly, then channel-specific layers are probably the best first system. They are consistent with your part/material model, easy to explain, easy to render, and easy to debug. They also map naturally onto export, because each channel produces its own texture map or packed texture content.
+
+If, however, you want the app to feel more like a material-authoring environment rather than just a map-painting environment, then pure channel-specific layers will start to feel a bit low-level. Users will want to say “make this part feel dusty” or “add worn edges,” not “open roughness, paint this; now open color, paint that; now open normal, paint again.” That is where semantic multi-channel layers become attractive.
+
+So a useful way to compare the models is by asking what the user thinks they are editing.
+
+In the channel-specific model, the user thinks they are editing signals. Color. Roughness. Normal.
+
+In the material-wide model, the user thinks they are editing surface phenomena. Dust. Wear. Rust. Leather grain.
+
+Those are not the same mental model.
+
+For a technically oriented user, the signal model is often excellent. For a more artistic or exploratory workflow, the phenomenon model is more natural.
+
+There is also a strong AI angle here. AI systems are usually better aligned with semantic layers than with raw channel layers. If the user asks for “aged brass with smudged handling areas,” that is not naturally a base-color-only request or a roughness-only request. It is a material phenomenon request. So if you want to integrate AI in a way that feels coherent, having some notion of semantic material layers is very helpful.
+
+For example, an AI-generated “dust” layer could produce outputs in color and roughness and maybe a mask derived from geometry. That fits naturally in the multi-channel or hybrid model. In a purely channel-specific system, AI would have to either generate separate synchronized layers for each channel or dump results directly into several channel stacks, which is workable but less elegant.
+
+Let me reduce this to a tiny example.
+
+Suppose the selected part is Bag/LeatherFlap.
+
+You want to add edge wear.
+
+In a channel-specific system, you might do this:
+you create a Base Color layer named Edge Wear Color,
+a Roughness layer named Edge Wear Roughness,
+and maybe a Normal layer named Edge Wear Microdetail.
+
+These are separate but conceptually linked. The UI is clear, but the artist has to manage the linkage mentally.
+
+In a material-wide system, you create one layer named Edge Wear, and internally it writes to color, roughness, and normal. The UI matches the semantic idea better, but the user needs inspection tools to understand which channels it affects and by how much.
+
+In a hybrid system, you create one Edge Wear layer, but the UI can still show, when needed, its per-channel contribution. That gives you the best conceptual fit, but also the most design work.
+
+So if I compare “what we had before” to the options now, I would put it like this.
+
+The earlier idea was the clean signal-first design. It is minimal, inspectable, and easy to make correct. It treats layers as belonging to albedo, normal, roughness, and so on. That is still a very strong foundation.
+
+The main limitation of that earlier idea is that it does not naturally group together a single material phenomenon that spans multiple channels. The more advanced alternatives solve that, but at the cost of extra abstraction and UI complexity.
+
+My honest recommendation is not to jump immediately to the most powerful model. I would choose one of these two paths.
+
+The conservative path is to begin with channel-specific layers, but add a concept of linked layer groups. So Edge Wear could be a folder or group that contains a color sublayer, a roughness sublayer, and a normal sublayer. This is very practical. It keeps channels explicit while giving you a semantic grouping mechanism.
+
+The more ambitious path is to build a hybrid material-layer system from the start, where each layer declares which channels it affects, and the UI can flip between “material layer view” and “channel contribution view.” This is the more future-proof design, especially if AI and procedural materials are important to you, but it is also harder to get right.
+
+If I had to formalize a first-version design for your app, I would do this:
+
+Each part has one PBR material.
+The material has explicit channels.
+The user can inspect channels individually at all times.
+The primary editable stack is a material-layer stack.
+Each layer may affect one or more channels.
+Simple paint layers usually affect one channel.
+Higher-level layers, procedural effects, and AI-generated layers may affect multiple channels.
+The UI provides a filter or solo view per channel so the user can always inspect the final contribution to albedo, roughness, normal, and so on.
+
+That is basically the hybrid model, but disciplined.
+
+It preserves the clarity of the earlier channel-based idea, because the user can still answer “what is happening in roughness?” But it also lets the application grow into a richer material-authoring system, because not every meaningful edit has to be split manually into separate channel layers.
+
+The central tradeoff is simple. Channel-specific layers maximize inspectability. Material-wide layers maximize semantic coherence. A hybrid system tries to give you both, but only works if the UI is very clear about which channels each layer touches.
+
+So the next real design decision is not “should layers be normal and albedo?” It is: do you want the primary object in the stack to represent a signal edit, or a surface phenomenon? Once you answer that, most of the right-panel design follows naturally.
+
+My own view is that for your application, especially if you want room for AI-assisted materials later, the best long-term answer is a hybrid stack with strong channel inspection. That gives you something richer than the earlier pure-channel idea without sacrificing the ability to debug and reason locally.
+
+Uploaded image
+what should i put here in your vision?
+
+also i want to do a minimal app. a minimal set of tools: select, brush,... is there any other i should surely include?
+
+then part selection, and channel selection.
+
+is there something im missing?
+
+Thought for 1m 24s
+Yes. For Milestone 2b, I would not try to impress them with a long feature catalog. I would present one coherent interface, show the few main interactions it supports, and explain why those choices fit the user and the task. That is also exactly how the course material frames low-fidelity work: focus on task design, layout flow, screen layouts, information display, and whether the interaction can work, rather than polishing colors or visual style . More broadly, the module keeps insisting that the design should be grounded in who the user is and what the primary tasks are, then refined through low-fidelity prototypes and evaluation . And for sketching, the goal is to communicate the essence of the idea with just enough detail, not to over-render it .
+So, in my vision, what you should put there is something like this.
+
+Start with a short project statement. One paragraph is enough. Say that the application is a minimal 3D painting tool for users who want to assign and paint PBR materials directly on semantic parts of a 3D object. Emphasize that the design targets a focused workflow: select a part, choose a material channel, adjust a brush, paint in the 3D viewport, and inspect the result immediately. That sentence already tells the evaluator what the system is for and what the core loop is.
+
+Then describe the final interface structure. I would say the interface is organized around a large central 3D viewport, a minimal left toolbar for actions, and a right inspector for target selection and material editing. The center is dominant because painting is the primary task. The left side contains the current action and its parameters. The right side contains semantic part selection and channel selection, so the user always knows what they are editing. This matches the course emphasis on layout and information display: what the user sees, what they do, and how the system presents state .
+
+Then describe the main interactions, not in abstract terms, but as small task sequences. For example: the user clicks a part in the viewport or in the part tree; the right panel updates to show that part’s single PBR material; the user selects a channel such as base color or roughness; the user adjusts brush size and strength; the user paints directly on the model; the result appears immediately in the viewport. That is exactly the kind of thing they mean by “illustrate all main interfaces and the interactions they support.”
+
+Then add the rationale. This is where you explain why you chose this design over the alternatives. The key argument is not “it looks cleaner.” The key argument is that you reduced ambiguity. By deciding that each part has one PBR material and that a part may have subparts, you made target selection simpler. The user first chooses where to paint, then what channel to paint, then how to paint. That is a very strong user-centered rationale, because it reduces the cognitive burden of wondering which object region or material slot is active. It also supports a minimal implementation.
+
+If you want a pasteable rationale paragraph, I would write it like this:
+
+“This final design combines the strongest elements of our earlier sketches into a single coherent interface centered on the main user task: painting materials directly on a 3D object. We chose a large central viewport because direct visual interaction with the object is the core activity. We placed a minimal tool panel on the left for action selection and brush parameters, and a semantic inspector on the right for part selection and channel selection. To simplify the interaction model, each part owns exactly one PBR material, while complex objects are represented through a hierarchy of parts and subparts. This avoids the ambiguity of multiple materials per part and makes the editing target explicit. The resulting workflow is simple: select a part, choose a channel, adjust the brush, paint, and inspect the result immediately. We selected this design because it best supports learnability, clarity, and fast iteration while remaining realistic to implement in a minimal prototype.”
+
+That would be a good core paragraph.
+
+Now, on the minimal app itself: yes, you should keep it tight. Do not confuse “minimal” with “missing the essential interactions.” The real question is not how many icons you have, but whether the user can complete the full loop without getting stuck.
+
+For actual authoring tools, I would keep only three to start.
+
+Select is mandatory. It lets the user choose the target part.
+
+Brush is mandatory. It is the core editing action.
+
+Picker is the one extra tool I would strongly recommend. By picker, I mean sampling the current channel value or material appearance from the model. In practice, this prevents the workflow from becoming one-way. Without it, the user paints, but cannot easily inspect or reuse what is already there.
+
+If you have time for one more, add Fill. Fill is surprisingly valuable because many users want to block in a whole part or a masked region quickly before doing local brush work. But if time is tight, Fill is optional.
+
+I would not make Erase a separate tool in the first version. Treat erase as a brush mode, or as painting with a negative effect on the current layer or channel. That keeps the toolbar smaller.
+
+So the minimal authoring toolset I would personally recommend is: Select, Brush, Picker, and optionally Fill.
+
+What is more important than the tool count, though, is the set of essential interactions around those tools. This is where people often forget half of the real UI. You already mentioned part selection and channel selection. Good. But you are still missing a few things that are not glamorous, yet absolutely central.
+
+You need viewport navigation. Orbit, pan, and zoom are not optional in a 3D painting app. They are not “advanced features”; they are part of using the brush at all.
+
+You need undo and redo. A painting app without immediate recovery is not really usable, especially in a prototype where mistakes are common.
+
+You need visible current target state. The interface should always show something like “Selected part: Bag > Strap” and “Active channel: Roughness.” Otherwise the user will lose track of what they are editing.
+
+You need minimal brush parameters. At least size and strength. Hardness is very useful too, but if you want the absolute minimum, size and strength come first.
+
+You need inspection or preview of the active channel. This one is easy to miss. If the user is painting roughness or normal, the full shaded view alone is often not enough to understand what changed. Even a tiny toggle that says “preview base color / roughness / metallic / normal / shaded” would help a lot.
+
+And you need the part tree to support at least hide or isolate. Lock is nice, but if you have to choose, isolate is often more immediately useful because it helps the user focus on one region.
+
+So if I rewrite the minimal scope more rigorously, I would say the minimal app should support one complete benchmark task: the user can navigate the model, select a part, choose a PBR channel, adjust the brush, paint on that channel, inspect the result, and undo if needed. That is the real minimal unit of usability. The course material on evaluation also stresses using clear benchmark tasks stated in the user’s language, focusing on what the user should achieve rather than how they do it .
+
+In practical UI terms, the minimal first screen I would aim for is this. A top bar with file and undo/redo. A left rail with Select, Brush, Picker, maybe Fill. A small brush options panel under or beside the left rail. A large center viewport. A right panel with a part hierarchy, a compact material card, and a channel selector with Base Color, Roughness, Metallic, and Normal. You do not need to expose every possible PBR channel at first, but those four are the most defensible minimum if you want to claim PBR support. If even that feels too large for the prototype, then support Base Color and Roughness first and show the others as planned extensions.
+
+There is one more thing I think you are missing conceptually. You need to distinguish tools from targets from properties.
+
+A tool is Select or Brush.
+
+A target is the selected part and the selected channel.
+
+A property is brush size, strength, and maybe current value or color.
+
+A lot of student prototypes mix these together in the same panel. That makes the interface feel messy even when the feature count is small. Your design will become much stronger if you keep these three categories separate. Left side for tools and tool properties. Right side for targets and material/channel state. Center for action and feedback.
+
+My blunt advice is also this: keep AI out of the main milestone unless it is just a future extension note. Right now it will only bloat the design and weaken the clarity of the prototype. A minimal 3D painting app is already enough of a project. You can add one sentence saying that future versions may include AI-assisted material generation or semantic segmentation of parts, but the refined low-fidelity prototype focuses on the core manual painting workflow. That is a disciplined decision, and it will read as mature rather than unambitious.
+
+So the short answer is: yes, you are close, but you are missing the support structure around the core loop. The minimum is not just select, brush, part selection, and channel selection. You also need viewport navigation, undo/redo, visible current target state, minimal brush controls, and some way to inspect the active channel. Once those are in place, the app becomes coherent.
+
+If you want, I can turn this into a clean Milestone 2b write-up with section headings and a ready-to-paste version for your submission.
+
+can you reference the slides? do they present examples of what i might have to send in
+
+Thought for 52s
+Yes. The slides do give you pretty good guidance, and they do show examples of the kind of thing you can submit, even if they do not give a single fixed template.
+The clearest reference is the prototyping deck. It says that what you should prototype is the task design and layout flow, the screen layouts and information display, and, if relevant, some technical aspects of whether the idea can work . It also lists the main prototype forms: storyboards for user flow, paper prototypes for layout and flow, video prototypes for overall experience, and software for functionality . A few slides later it explicitly says wireframe prototypes can be paper or digital and are mainly about layout and functionality . So, for your milestone, a digital wireframe with a few annotated screens is absolutely in scope.
+
+The same deck also shows concrete visual examples. There are actual photos of paper prototypes with interchangeable paper UI elements, plus examples of digital wireframes and mockup-style interface sketches . So the answer is yes: the course material is not just abstract theory; it is showing the level and type of artifact they have in mind.
+
+The ideation slides reinforce the same point from the sketching side. They say sketches are quick freehand drawings, can include labels or captions, and do not need to be pretty; their goal is communication and brainstorming . They also stress that a sketch should communicate the essence of the idea, use as few lines as possible, and include details only if they are important . There are also “Example Sketches” slides and practice examples like sketching a mobile phone, Paris, or a computer, which strongly suggests that rough, low-fidelity, annotated drawings are acceptable as long as they communicate the interaction clearly .
+
+So if you ask, “what do they expect me to send?”, my reading is this:
+
+They do not expect polished visual design. They expect a refined low-fidelity prototype that clearly communicates the main screens, the main interaction flow, and the rationale behind the chosen design. That matches both your milestone screenshot and the slides. In practice, for your project, that likely means a small set of annotated wireframes rather than a full fake application.
+
+For your 3D painting app, I would submit something like this.
+
+First, one overview wireframe of the main workspace. This should show the overall layout: top bar, left tools, central viewport, right panel with parts and channels.
+
+Second, two or three task-focused screens or states. For example, one where the user selects a part, one where they switch channel and paint, and one where they inspect the result or adjust brush settings. The prototyping slides emphasize task flow and what the user sees and does, so separate task states matter more than cosmetic polish .
+
+Third, a short rationale text. Explain why you chose this final design, how it combines earlier ideas, and how it supports the main tasks and user constraints. That is also exactly what your milestone statement asks for.
+
+If you want the blunt answer: you do not need to send a fake finished app. A clean, coherent set of low-fidelity wireframes with annotations is enough, and it is probably the safest choice.
+
+For your minimal app, your current list is close, but not complete. Select, Brush, part selection, and channel selection are core. I would say the truly minimal complete set is:
+
+Select tool, to choose the target part.
+Brush tool, to paint the current channel.
+Viewport navigation, meaning orbit, pan, zoom.
+Brush controls, at least size and strength.
+Part tree or direct part picking in the viewport.
+Channel selector, at least Base Color and Roughness, with Metallic and Normal if you want the PBR story to feel more complete.
+Undo/redo.
+Visible current state, meaning the UI should always show which part and which channel are active.
+
+Those last three are easy to forget, but they are not optional in a believable painting workflow.
+
+What I would not add yet is a big layer system, procedural graph, AI panel, material library browser, UV editor, decals, masking, or subpart-management tools beyond simple hierarchy display. Those can all be future work. Right now, your milestone is about a coherent interaction concept, not breadth.
+
+So the minimal benchmark task you should design around is this: the user can navigate the model, select a part, choose a channel, adjust the brush, paint, and immediately understand what changed. If your prototype communicates that clearly, you are meeting the spirit of the course material.
+
+A very reasonable deliverable for you would be four pages or frames:
+
+one main workspace screen,
+one “select part” interaction state,
+one “paint base color” state,
+one “paint roughness / inspect channel” state,
+
+plus a short paragraph of rationale.
+
+That would be fully consistent with the slides and with the milestone prompt.
+
+If you want, I can turn that into a concrete submission outline with exact section names and the 4 screens I think you should draw.
+
+Uploaded image
+i have this, what now
+
+Thought for 54s
+This is good enough to stop inventing and start refining.
+What you have now is a real candidate for the final low-fidelity prototype: a stable overall layout with a left action area, a central work area, and a right target/state area. That is already aligned with what the prototyping slides say you should be showing at this stage: task design and layout flow, screen layouts and information display, and the interactions the interface supports, not polished visual design . The ideation slides also explicitly say sketches can include labels, do not need to be pretty, and should communicate the idea with as few strokes as possible . So your current sketch is absolutely in the right format.
+
+The main thing now is not “draw more stuff.” The main thing is to turn this one layout into a coherent submission.
+
+What I would do next is first clean the structure of this exact screen. The biggest strength of your sketch is already there: the user acts in the center, chooses tools on the left, and chooses targets on the right. Keep that. Do not add a large AI area, a big material library, or a complicated layer graph now. That would weaken the prototype.
+
+I would refine this screen in a very specific way.
+
+On the far left, keep only the truly essential tools. For a minimal app, I would make that column just Select, Brush, and Picker. If you want one extra, add Fill, but only if you can justify it with a real task. The second narrow column can stay as tool-specific options, but make it concrete. For Brush, show just size and strength, maybe hardness if you want one more parameter. For Select, show selection mode if relevant. For Picker, you may not need many options at all. Right now your B1/B2 and O1/O2 placeholders should be replaced by actual labels, because at milestone level they need to understand what interaction is supported, not just that a rectangle exists.
+
+The center viewport is the heart of the design, and it should stay large. That is the right decision. But I would simplify what you show inside it. The X and Y sliders around the model are probably trying to suggest navigation or transform controls, but for the submission they may distract more than help. In a 3D painting app, viewport navigation is essential, but you do not have to draw it as giant permanent sliders. You can simply annotate the viewport with “orbit / pan / zoom” or show a small note saying the user can navigate the model directly. The slides emphasize that low-fidelity prototypes are for layout and functionality, not for overcommitting to every visual control . So here I would remove the big sliders unless they are central to your concept.
+
+The bottom UV viewport is the one part I would question most strongly. For a minimal first app, I would not keep it permanently open on the main screen. It adds complexity and splits attention. If your main workflow is “select part -> choose channel -> paint on the 3D model,” then the UV view is secondary. You can mention it as an optional advanced workspace or future extension, but I would not make it part of the core milestone screen unless one of your main scenarios specifically depends on UV editing. Right now it is probably too much.
+
+The right panel is structurally correct, but it needs one missing piece: current target state. Right now you have “Parts” and “Channels,” which is good, but the interface should also explicitly state what is currently selected. Add a small header above those sections that says something like:
+
+Selected part: Cat Face
+Active channel: Base Color
+
+That one addition makes the system much easier to understand. It also maps nicely to usability heuristics like visibility of system status, recognition rather than recall, and minimalist design from the evaluation slides . In other words, do not make the user infer the current state from scattered highlights.
+
+I would also rename the channel list so it reads like a real PBR editor. Instead of “albedo” alone, I would write Base Color, Roughness, Metallic, and Normal. That is enough for a minimal PBR story. If you want to be slightly more complete, you can mention Height or Emissive in smaller text, but I would not expose too many channels in the main sketch. Four is already enough to communicate the concept.
+
+So, concretely, your main workspace screen should become this.
+
+A top bar with File, Undo, Redo, maybe a project name.
+
+A left vertical toolbar with Select, Brush, Picker, maybe Fill.
+
+Next to it, a narrow tool-options panel with Brush Size and Brush Strength.
+
+A large central 3D viewport.
+
+A right inspector with a current target summary, a part tree, and a channel selector.
+
+That is the core.
+
+Then, instead of stopping at one screen, draw three or four states of the same layout. This is the part people often miss, and it matters because the slides talk about user flow and what the user sees and does for a task . One static screen is not quite enough to show interaction. You want the same workspace repeated in a few states.
+
+The first state should be “idle / main workspace.” It shows the object, the parts panel, the channels panel, and the default tool.
+
+The second state should be “part selected.” Highlight one part in the viewport and in the part tree. The right panel now clearly shows the selected part.
+
+The third state should be “channel selected.” For example, Base Color is selected, and the right panel makes that explicit.
+
+The fourth state should be “painting.” Show the brush on the model, and maybe a visible result on the selected part.
+
+If you want a fifth, make it “roughness inspection” where the user switches channels and sees a different kind of edit. But four screens are enough.
+
+That is probably the best answer to “what now?” You now convert this layout into a tiny storyboard of one task.
+
+For your milestone write-up, I would anchor everything around one benchmark task. Something like: “The user wants to paint the ears of the cat a new material color and then adjust the roughness.” Then the interface states naturally support that scenario. First select the ear part. Then choose Base Color. Then paint. Then switch to Roughness. Then paint again. That is clean, concrete, and easy to explain.
+
+Your rationale paragraph can also now be very direct. You do not need a grand theory. Just say that the design was chosen because it separates actions, workspace, and editing target. The left side contains tools and tool parameters. The center contains direct manipulation of the 3D object. The right side contains semantic target selection through parts and PBR channels. This organization reduces ambiguity and supports a simple workflow for a minimal implementation. That kind of rationale is exactly what the milestone prompt is asking for, and it is consistent with the course emphasis on users, primary tasks, and low-fidelity refinement .
+
+There are also two things I would explicitly remove or postpone.
+
+First, do not add a full layer system yet unless the milestone requires it. You spent time thinking about channels versus layers, and that was useful, but for this submission it may be enough to say that the current prototype focuses on direct channel painting, and layered editing is a future extension. Minimal is better here.
+
+Second, do not make AI part of the main prototype. Mention it only as future work if you want: AI-assisted material generation or automatic semantic part segmentation. But keep the current milestone centered on manual painting. That will read as disciplined, not incomplete.
+
+So the next practical steps are these.
+
+Redraw this same screen more cleanly once, with real labels instead of placeholders.
+
+Then draw three additional states of the same layout: select part, choose channel, paint.
+
+Then write one short rationale paragraph and one short task scenario paragraph.
+
+Then do one pass over the screens with a simple checklist from the evaluation slides: is the current state visible, are labels clear, does the user have control, is the design minimal, and can the next action be recognized without guesswork .
+
+Bluntly: you are much closer than you think. You do not need a new concept. You need one cleaner main wireframe and three state variations of it.
+
+A few small corrections I would make on the drawing itself before you finalize it: replace B1/B2/B3/B4 with actual tool names, replace O1/O2/O3/O4 with actual brush settings, add Undo/Redo in the top bar, remove the permanent UV pane unless you really need it, and add a “Selected part / Active channel” readout above the right panel. Once you do that, the prototype will look intentional rather than exploratory.
+
+If you want, I can now turn your sketch into a precise 4-screen submission plan, screen by screen, with exactly what to draw in each one.
+
+instead, help me draw more screens, in different user sitaution maybe. i like the 4 screen submission plan
+
+Thought for 21s
+Yes. At this point, the best move is not to invent a totally new interface, but to turn your one workspace sketch into a small storyboard of user situations. That is very much in line with the slides: storyboards are good for user flow, paper prototypes are good for layout and flow, and low-fidelity work should focus on what the user sees and does, along with screen layout and information display . The sketching slides also push exactly this kind of submission: one page per sketch, details only if they matter, and communicate the essence of the idea rather than polishing it .
+So I would keep one base layout and draw four screens that correspond to four moments in one believable task. The important thing is that the screens should differ by state, not by architecture. In other words, the frame stays the same, but the highlights, labels, and object state change. That makes the interaction legible and helps with recognition over recall and visibility of system status, which the usability slides emphasize .
+
+I would use this 4-screen submission plan.
+
+Screen 1 should be the “starting workspace.” The user has just opened the app and sees the 3D object in the center, the tool rail on the left, and the part tree plus PBR channels on the right. Nothing is painted yet. The selected tool is Select. On the right, the part tree is visible, but no specific subpart is highlighted yet. The point of this screen is to communicate the global organization of the interface. You are showing the evaluator: this is where actions live, this is where the object lives, and this is where the current target will be defined.
+
+What to draw on Screen 1 is simple. Keep your current layout. Replace the placeholders with real labels: Select, Brush, Picker on the left; Brush Size and Strength in the options column, maybe grayed out if Select is active; on the right, a part list such as Head, Ear Left, Ear Right, Belly, Tail, Bag, Hat; below it a channel list such as Base Color, Roughness, Metallic, Normal. Add a small header on the right saying “No part selected” or “Selected part: none.” That one line makes the state much clearer.
+
+Screen 2 should be the “part selection” situation. This is the first real user action. The user wants to paint only one semantic region, for example the cat’s left ear or the bag. So now the selected part is highlighted both in the viewport and in the part tree. The selected tool may still be Select. The right panel now reads something like “Selected part: Left Ear” and maybe “Material: Fabric_PBR.” This screen shows that the design uses semantic parts instead of making the user think in raw mesh faces or material slots. That is a strong design choice.
+
+What changes from Screen 1 to Screen 2 is not much, and that is good. The object gains a highlight outline on the selected part. The relevant node in the part tree becomes filled or circled. The material card appears for that part. Everything else stays stable.
+
+Screen 3 should be the “channel selection and paint setup” situation. The user has already chosen the part, and now chooses what aspect of the material to edit. This is where the right panel becomes really meaningful. For example, Base Color is selected. The tool switches to Brush. The left options panel now becomes active and shows Brush Size and Strength. On the right, the channel Base Color is highlighted, and the header says something like “Selected part: Left Ear / Active channel: Base Color.” This screen proves that your interface separates where to paint from what property to paint.
+
+This is an important screen because it makes the structure of the app explicit: part selection first, channel selection second, brush action third. That sequencing reduces ambiguity and fits very well with the evaluation material’s emphasis on predictability and whether the user can recognize the correct next action .
+
+Screen 4 should be the “painting result” situation. The user is now actively brushing on the object, and the selected part visibly changes. For instance, the left ear becomes yellow in Base Color mode, or the bag becomes less glossy in Roughness mode. Keep the brush cursor visible as a circle on the surface. The viewport should show the consequence of the action. The right panel still shows the active part and channel. The left panel still shows brush settings. The crucial point is that system feedback is immediate and local. The user can tell what changed and why.
+
+That 4-screen sequence is already enough for a valid submission, because it shows the main interface and the interactions it supports. It also gives you a natural rationale: the user first identifies the target region, then the target material property, then performs the editing action in the viewport.
+
+But since you asked for “different user situations,” I think the smartest version is to treat those four screens as one primary scenario, and then, if you have time, add one or two alternate mini-scenarios on separate pages. Not a totally new interface—just another state story.
+
+The best alternate scenario is “correcting a mistake or inspecting another channel.” This is useful because it shows that the app is not just for one happy-path recolor. For example, the user paints the part in Base Color, then switches to Roughness to make it shinier or rougher, or uses Undo after overshooting. This gives you a second meaningful task without expanding the feature set too much. It also aligns with user control and freedom, which the heuristics explicitly call out .
+
+So if you want a slightly richer submission, I would structure it like this.
+
+The first four screens are Scenario A: “Recolor one part.”
+Screen 1: workspace overview.
+Screen 2: select part.
+Screen 3: choose Base Color and Brush.
+Screen 4: paint result.
+
+Then add Scenario B as one or two extra screens:
+Screen 5: switch from Base Color to Roughness.
+Screen 6: paint roughness or use Undo after a mistake.
+
+That gives you a stronger prototype without making it large.
+
+Now let me be very concrete about what to draw on each page.
+
+For Screen 1, title it “Main workspace.” Add tiny arrows labeling the three zones: tools, viewport, inspector. Under the drawing, write one sentence: “The user opens the app and sees a large central viewport, a minimal tool area on the left, and a semantic inspector on the right.”
+
+For Screen 2, title it “Select a part.” Circle the left ear or the bag in the viewport. Highlight the same item in the part tree. Under the drawing, write: “The user selects a semantic part directly in the viewport or in the part list.”
+
+For Screen 3, title it “Choose a material channel.” Highlight Base Color in the channel list. Highlight Brush in the left toolbar. Show the options column with Size and Strength. Under the drawing, write: “Once a part is selected, the user chooses the PBR channel to edit and configures the brush.”
+
+For Screen 4, title it “Paint in the viewport.” Show the brush cursor on the selected part and a visible color change. Under the drawing, write: “The user paints directly on the 3D object and sees the result immediately.”
+
+If you do Screen 5, title it “Inspect or edit another channel.” Highlight Roughness instead of Base Color. Optionally add a small note saying “Shaded / Roughness preview.” Under it, write: “The same workflow supports editing different PBR properties of the selected part.”
+
+If you do Screen 6, title it “Recover from an error.” Add an Undo button in the top bar and show the object before and after. Under it, write: “Undo lets the user recover quickly from unwanted edits.”
+
+There is also a good alternative set of four screens if you want the screens to reflect different user situations rather than one linear task. In that version, each screen is a different scenario:
+
+one screen for selecting a part,
+one for painting color,
+one for painting roughness,
+one for sampling an existing material value with the picker.
+
+That is also valid. But I think the linear task sequence is stronger, because the predictive evaluation slides explicitly emphasize walking through task scenarios step by step from one action to the next, even with a very low-fidelity prototype . So I would make the four main screens a coherent flow, and treat “different user situations” as optional extra pages.
+
+There are also two discipline rules I would follow while drawing.
+
+First, keep the interface almost identical across all screens. Only change the highlighted tool, selected part, selected channel, and viewport result. This is important because it makes consistency visible.
+
+Second, annotate state changes explicitly. Do not assume the reader will infer everything. Write small labels like “selected,” “active channel,” “brush cursor,” “painted result.” The sketching slides are clear that labels and captions are fine and that the goal is communication, not visual purity .
+
+My blunt recommendation is this: do not draw a UV editor, full material library, layers panel, or AI assistant in these milestone screens. They would dilute the story. Your current concept is strongest when it says: minimal app, one material per part, semantic part hierarchy, explicit PBR channel editing, direct painting in the viewport. That is enough.
+
+So the practical plan from here is simple. Redraw your current workspace once as the master layout, then produce three variants of it for Screens 2–4. If you still have time, add one or two alternate-state screens for roughness editing or undo.
+
+If you want, I can now give you the exact page-by-page content as a compact checklist you can keep next to you while drawing.
+
+Uploaded image
+Uploaded image
+Uploaded image
+Uploaded image
+plan to send in these. what text should accompany it?
+
+Thought for 56s
+Yes. These are good enough to send, and the accompanying text should do one job: explain the task flow and the reason for the layout, not apologize for the roughness. That matches the course material quite well. The prototyping slides say low-fidelity work should focus on task design and layout flow, what the user sees and does, and screen layouts and information display; they also explicitly list storyboards, paper prototypes, and wireframes as appropriate forms for this stage . The sketching slides say sketches can include labels or captions, do not need to be pretty, and should communicate the idea with as few strokes and only the important details  . Your images fit that.
+I would send them with one short introduction, then a caption under each screen, then one short rationale paragraph. That is enough.
+
+Here is a ready-to-paste version.
+
+Project summary
+
+This refined low-fidelity prototype presents a minimal 3D painting application for editing PBR materials directly on semantic parts of a 3D object. The interface is organized around a large central viewport, a small tool area on the left, and an inspector on the right. The prototype focuses on the main user task: selecting a part of the object, choosing a material channel, and painting directly on the 3D model. I chose a low-fidelity storyboard format because this stage is mainly about layout, task flow, and supported interactions rather than detailed visual styling .
+
+Screen 1 — Main workspace
+
+This screen shows the overall structure of the application. The left side contains a minimal set of tools and tool-specific options. The center contains the 3D viewport, which is the main workspace. The right side contains semantic object parts and PBR channels. The goal of this layout is to separate action from target: the user chooses how to act on the left, performs the action in the center, and always sees what part and what channel are active on the right.
+
+Screen 2 — Navigation / orbiting the object
+
+This screen illustrates viewport navigation. Before painting, the user must be able to inspect the object from different viewpoints in order to access the desired surface. The viewport therefore supports orbiting the camera around the object while keeping the rest of the interface stable. This interaction is important because 3D painting requires both manipulation of the object and manipulation of the material properties.
+
+Screen 3 — Selecting a part and a channel
+
+This screen shows the user selecting a semantic part of the object and then choosing the material channel to edit. In this design, each part has one PBR material, and the user edits one channel at a time, such as Base Color, Roughness, Metallic, or Normal. This makes the target explicit and reduces ambiguity: the user always knows both where they are painting and what property they are painting.
+
+Screen 4 — Painting with the brush
+
+This screen shows the main editing interaction. After selecting a part and a channel, the user activates the brush and paints directly on the 3D surface. The left panel exposes only a small number of parameters, such as brush size, strength, and color, in order to keep the interaction simple. The brush cursor is shown directly on the object so that the user can immediately understand where the edit will be applied.
+
+Rationale
+
+This final design combines the strongest elements of the previous sketches into one coherent workflow. I chose a minimal interface because the intended users are focused on a small number of core tasks, not on managing a large and complex authoring environment. The design therefore emphasizes visibility of system status, recognition over recall, user control, and aesthetic minimalism: the current part and current channel are always visible, the available actions are exposed directly in the interface, and only the most necessary tools are shown  . More generally, the design follows the course approach of identifying the primary task, exploring alternatives, and then refining one concept into a low-fidelity prototype focused on layout and interaction rather than visual polish  .
+
+If you want a very short closing sentence, add this:
+
+At this stage, the prototype intentionally focuses on the core manual workflow. More advanced features such as layered editing, AI assistance, or a full UV workflow are left for later iterations.
+
+One practical note: before sending, I would change “opacity” in the channel list to “roughness,” unless transparency is really central to your use case. For a minimal PBR painting app, Base Color, Roughness, Metallic, and Normal tell a clearer story than Base Color, Metallic, and Opacity.
