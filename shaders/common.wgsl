@@ -3,9 +3,10 @@ struct Brush {
   radius:   f32,
   on:       f32,
   painting: f32,
-  matId:    f32,
+  r:        f32,
+  g:        f32,
+  b:        f32,
   strength: f32,
-  _pad1:    f32,
 };
 
 struct Material {
