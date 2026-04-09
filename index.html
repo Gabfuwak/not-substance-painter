@@ -7,45 +7,36 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="left-panel">
-    <button class="tool-button is-active" type="button" aria-label="Select tool" aria-pressed="true" data-tool="select">
-      <img src="assets/blender/select_box.svg" alt="" class="tool-icon">
-    </button>
-    <button class="tool-button" type="button" aria-label="Move tool" aria-pressed="false" data-tool="move">
-      <img src="assets/blender/move.svg" alt="" class="tool-icon">
-    </button>
-    <button class="tool-button" type="button" aria-label="Orbit tool" aria-pressed="false" data-tool="orbit">
-      <img src="assets/blender/gesture_rotate.svg" alt="" class="tool-icon">
-    </button>
-    <button class="tool-button" type="button" aria-label="Brush tool" aria-pressed="false" data-tool="brush">
-      <img src="assets/blender/brush.svg" alt="" class="tool-icon">
-    </button>
-    <div id="subtool-panel" aria-live="polite"></div>
-  </div>
-
   <div id="main-panel">
-    <div id="object-viewport">
-      <canvas id="object-canvas"></canvas>
-      <!-- todo: make it have a dynamic size (iirc easiest is to have it check size on page creation) -->
+    <div class="viewport-panel viewport-panel--object">
+      <div class="viewport-tools" aria-label="Tools">
+        <button class="tool-button is-active" type="button" aria-label="Select tool" aria-pressed="true" data-tool="select">
+          <img src="assets/blender/select_box.svg" alt="" class="tool-icon">
+        </button>
+        <button class="tool-button" type="button" aria-label="Move tool" aria-pressed="false" data-tool="move">
+          <img src="assets/blender/ops.transform.translate.svg" alt="" class="tool-icon">
+        </button>
+        <button class="tool-button" type="button" aria-label="Orbit tool" aria-pressed="false" data-tool="orbit">
+          <img src="assets/blender/ops.transform.rotate.svg" alt="" class="tool-icon">
+        </button>
+        <button class="tool-button" type="button" aria-label="Brush tool" aria-pressed="false" data-tool="brush">
+          <img src="assets/blender/brush.generic.svg" alt="" class="tool-icon">
+        </button>
+      </div>
+      <div id="object-viewport">
+        <canvas id="object-canvas"></canvas>
+        <!-- todo: make it have a dynamic size (iirc easiest is to have it check size on page creation) -->
+      </div>
     </div>
 
-    <div id="uv-viewport">
-      <canvas id="uv-canvas"></canvas>
+    <div class="viewport-panel viewport-panel--uv">
+      <div id="uv-viewport">
+        <canvas id="uv-canvas"></canvas>
+      </div>
     </div>
   </div>
 
   <div id="right-panel">
-    <div id="parts-panel">
-      <div class="panel-section">
-        <div class="panel-well">
-          <div class="panel-well-header">
-            <h3>Parts</h3>
-          </div>
-          <div id="parts-picker" aria-live="polite"></div>
-        </div>
-      </div>
-    </div>
-
     <div id="channels-panel">
       <div class="panel-section">
         <div class="panel-well">
@@ -53,6 +44,17 @@
             <h3>Channels</h3>
           </div>
           <div id="channel-picker" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="brush-panel" hidden>
+      <div class="panel-section">
+        <div class="panel-well">
+          <div class="panel-well-header">
+            <h3>Brush Options</h3>
+          </div>
+          <div id="brush-options-panel" aria-live="polite"></div>
         </div>
       </div>
     </div>
