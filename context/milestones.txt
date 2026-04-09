@@ -1,0 +1,121 @@
+https://perso.telecom-paristech.fr/eagan/class/igr203/project#understanding-user-needs
+
+User-Centered Design Project
+
+    🏠
+    🏫
+    👨‍🔬
+    👨‍🏫
+    📚
+    📓
+    💬
+    📷
+    👨‍💻
+
+Update in progress. Please check back here later.
+Objectives
+
+The goals of this project are to give you experience with the full design and implementation cycle for an interactive system. You will begin with an analysis of user needs, iterate over several low-fidelity prototypes, and finish with a working functional prototype.
+Milestones
+
+There are 6 major milestones for the project:
+
+    Group selection and choice of topic
+    Requirements gathering (user, task, context of use)
+    Creation of low-fidelity prototypes
+    Implementation of the software prototype
+    Project Defense
+    Final Report
+
+The deadlines and submission procedures are shown in the class Moodle.
+0. Group selection and choice of topic
+
+First, you will need to form groups of 3 or 4 members and choose a topic for your project. Here are some potential ideas to get your started:
+
+    Interactive restaurant menu
+        You client is a restaurant owner who wishes to implement a software system to take orders in the restaurant. Thankfully, there are students at the Grande École du Numérique to help out! You may choose the type of system appropriate for the type of restaurant, such as replacing existing paper menus at a sit-down restaurant (assume these still exist) or a self-service system such as one might find at a McDonald’s.
+    Set-top box
+        A system to control a living-room media-center, integrating TV, audio, streaming, etc. You could choose to make a remote-control app for smartphone/tablet or to handle interaction across the room (e.g. remote control for the TV).
+    Grocery store checkout
+        Your client is a supermarket who wishes to implement a touch-screen cash register system at checkout.
+    Create a TODO manager
+        A system to help the user enter and manage their tasks.
+
+If you wish to work on a different topic, you may discuss with the instructors to suggest your own. Make sure that you do this well-enough in advance of the deadline that you may refine your choice or fallback on another if the instructors deem it infeasible in the context of this course.
+
+Warning: some projects may seem simpler than others. In all cases, we are looking for a well thought-out design, focussed on the user’s needs. The final prototype does not necessarily need to implement all of the functionalities in the proposed design, but it should fully implement the interactions and functional capabilities. For example, a restaurant system need not communicate with a database to update available dishes; these could be, say, hard-coded in a JSON file. A set-top box would not really need to control a television; it could simulate it in the final prototype. Remember: the goal of this project is to implement an interactive system, not to implement, say, a video decoding algorithm.
+1. Understanding User Needs
+
+The goal here is to identify and understand the user’s needs for the system. Who are the system’s users? What are they trying to accomplish, why, and in what kinds of situations? Usually there are several kinds of user, each with their own (frequently conflicting) specific constraints and goals.
+
+We have seen in class several methods to better understand these needs and contexts for the system. What methods seem best suited to your situation? Which one(s) have you chosen to use?
+
+What have you learned? What are the different kinds of users? What kinds of tasks are they trying to perform? What are the different use contexts? What functionality will the system need to support as a result?
+
+What are the different constraints that all of this has permitted you to identify?
+
+At this point, avoid thinking about specific solutions. The design will come later. Here, we just want to get a handle on the underlying problem(s) your system will solve.
+2. Low-fidelity Paper Prototypes
+
+For the previous milestone, you have identified users’ needs, constraints, their tasks, and the use-context for the system. You have identified important usability criteria and you have a better understanding of the goals for the system to satisfy the user’s needs. For this milestone, you will create several design alternatives for the system.
+
+In class, we have done a preliminary brainstorming to generate a bunch of different possible directions for the design of the system. To continue this reflection, each member of the group should now create a collection of design sketches, each showing a distinct design for each part of the system. These should include different visions of some part of the interface as well as different designs for how the various interfaces come together to form a whole. The idea here is to explore a whole bunch of different ways of organizing the interface, using different metaphors, or interactions with the system.
+
+By this point, you should have a large collection of sketches for the major interactions with the system and different ways of structuring or organizing the user’s interaction. Now, go back through these sketches and narrow them down to present three distinct designs for your system, including all of the major interactions you will need.
+
+{#
+Milestone 2 Deliverable
+
+Upload a PDF of the collection of your final sketches to the Moodle. For each design, include a paragraph explaining the ideas underlying the design.
+
+Hint: the multifunction copiers on campus can scan your paper sketches. You may also use your phone to take photos of your sketches.
+
+#}
+Milestone 2b: Refined design
+
+Choose the final design that you plan to implement. This design will combine elements of the three designs from the previous step into a single, coherent design. This refined design should complete the various ideas evoked in the previous step into a single coherent interface. It will serve as a blueprint for the design that you plan to implement.
+
+It is not necessary to create a high-fidelity design complete with all of the visual aspects of each element (e.g. choice of colors, etc), but it should illustrate all of the main interfaces and the interactions that they support.
+
+This prototype may be in the form of a paper prototype, an interactive wireframe prototype, or of a video prototype, as seen in class.
+
+Include some text describing the rationale that led to this final design, including why you chose the various elements that you combined into this final design. We are looking here for deep reflection that will draw on your analysis of the user and task constraints given the context identified in Milestone 1 (or any evolutions that you may have identified during your design exploration).
+
+Submit your final design in the Moodle.
+Milestone 4: Software Prototype
+
+Up until now, you have been working in an idealized world, without worrying about how to actually implement all of the proposed interfaces. The goal of this part of the project is to gain experience implementing a complete, functional interface.
+
+Create an implementation of the main interfaces necessary for your project. If, for example, your project is to create an interactive restaurant menu, you should create an application with the primary interfaces identified in the previous milestone, e.g., to select among different dishes, modify ingredients, place an order, etc. It is not necessary to implement all of the underlying functionality (e.g., a database) as long as your system can demonstrate and handle the interactions of the interface.
+Milestone 4 Deliverable
+
+Write a README describing the implemented functionality, the interface, and code organization. Include a link to your Git repository. Submit using the class Moodle.
+
+(If you have used a private repository, do not forget to give me access. If you are not using the school GitLab, I am eaganj on GitHub, GitLab, and Bitbucket.)
+Milestone 5: Final Report.
+
+Écrire un rapport sur votre projet. Voici des éléments à inclure à minimum, mais vous serez évalué sur non seulement ces éléments mais aussi votre réflexion approfondie.
+
+    Un rappel de la description du projet (probablement environ un paragraphe). Quel est le projet choisi, le contexte, etc.
+    L’utilisateur
+        Quelle technique(s) avez-vous choisies pour identifier les besoins utilisateur ? Pourquoi avez-vous choisi cette technique ?
+        Quels sont les besoins du système ? Cette partie devrait présenter les besoins utilisateur principaux, du point de vue de l’utilisateur, et les fonctionnalités systèmes associées. Quelles sont les critères de réussite d’une tâche, les critères d’utilisabilité identifiées ?
+        Indice : des persona et des scénarios peuvent être utiles pour communiquer ces éléments.
+    Le design
+        Une brève récapitulatif des trois designs explorés dans la partie 2.
+        Le design final. Pourquoi avez-vous choisi ce design ? Ici, ça sera sûrement utile de relier le design aux besoins utilisateur, aux contexte d’usage, et aux contraintes techniques identifiés dans la première partie. Quels objectifs réussit-il bien ? Lesquels ne réussit-il pas trop bien ?
+        Est-ce ces besoins ont évolué lors de l’élaboration du design ? Pourquoi et comment ?
+        Comment marche ce design ? Pour chaque composant principale, utiliser des captures d’écran ou des photos pour montrer le design.
+    Le prototype
+        Quel est l’état du prototype ? Quelles fonctionnalités ont été complétées ?
+        Comment l’avez-vous implementé ?
+        Un lien vers le dépôt git du projet.
+    L’évaluation
+        Quelle méthode(s) avez-vous choisi pour évaluer le système ?
+        Pourquoi cette méthode ?
+        Quelles sont les tâches représentatives que vous utiliseriez lors de l’évaluation ?
+
+Ce rapport devrait faire entre 10 et 20 pages, dans une police sérif standard de 10 à 12 point, inter-lignes simples, et des marges raisonnables. Soumettre ce rapport en format PDF dans le Moodle. Tout rapport non-conforme sera considéré inadmissible et recevra automatiquement une note de 0.
+6. Soutenances
+
+Chaque groupe aura n minutes (à déterminer) pour présenter leur projet, démo comprise, et 3 minutes pour les questions. L’ordre de présentation sera déterminé aléatoirement le jour des soutenances. Le présentation doit résumer brièvement le contexte du projet : quel est le sujet, qui sont les porteurs du projet (e.g. les utilisateurs), quels sont les contextes d’usage, les tâches principales à supporter, et les critères d’utilisabilité. Elle doit montrer le design retenu, et brièvement expliquer pourquoi vous avez choisi ce design. La plupart de la soutenance sera consacré à une démo du prototype, suivi probablement par une description des points forts et points faibles de ce design.

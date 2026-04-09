@@ -1,0 +1,12 @@
+brush option: color
+eliminate : description "drag value right or up"
+
+Add tooltip descriptions:
+- Load model/textures
+- Save textures
+- Move tool
+- Orbit tool
+- Brush tool
+- Descriptions for each channel
+- Descriptions for shading mode: channel, render
+- Make tooltip appear faster

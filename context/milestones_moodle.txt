@@ -1,0 +1,61 @@
+
+Milestone 1: Requirements Gathering
+Conditions d’achèvement
+Ouvert le : vendredi 21 février 2025, 00:00
+À rendre : vendredi 14 mars 2025, 17:00
+
+See the Milestone description for more details.
+
+For this deliverable, you will prepare a document that addresses the above topics. This document can be in an informal, blog-like style, but it should reveal a deep reflection on the topics below.
+
+    A brief summary of the project topic.
+    The chosen method to reveal the user’s needs. Do not forget to include a clear reflection on why you chose this or these methods, their limitations, etc.
+    How you carried out this method.
+    What you learned. Think about how this informs important considerations for the future design of the system.
+    At least three persona that you will use to guide the future design of the system.
+        Why did you choose these persona?
+    At least three scenarios that describe various representative tasks for the different users.
+        … including the rationale behind your choice of these scenarios.
+    A list of pertinent usability criteria or principles that will be important to help evaluate the usability of your future system.
+
+You will need these items for the paper prototyping lab exercise.
+
+
+
+Milestone 2: Paper Prototypes
+Conditions d’achèvement
+Ouvert le : vendredi 13 mars 2026, 00:00
+À rendre : samedi 21 mars 2026, 08:30
+
+For the previous milestone, you have identified users’ needs, constraints, their tasks, and the use-context for the system. You have identified important usability criteria and you have a better understanding of the goals for the system to satisfy the user’s needs. For this milestone, you will create several design alternatives for the system.
+
+In class, we have done a preliminary brainstorming to generate a bunch of different possible directions for the design of the system. To continue this reflection, each member of the group should now create a collection of design sketches, each showing a distinct design for each part of the system. These should include different visions of some part of the interface as well as different designs for how the various interfaces come together to form a whole. The idea here is to explore a whole bunch of different ways of organizing the interface, using different metaphors, or interactions with the system.
+
+By this point, you should have a large collection of sketches for the major interactions with the system and different ways of structuring or organizing the user’s interaction.  Turn in a scan of these sketches, along with a name or brief description (from a phrase to a sentence or two) characterizing the underlying idea.
+
+Be sure to bring these sketches with you to class on March 20th.
+
+
+
+
+Milestone 2b: Refined Low-fidelity Prototype
+Conditions d’achèvement
+Ouvert le : jeudi 19 mars 2026, 00:00
+À rendre : vendredi 27 mars 2026, 17:00
+
+Choose the final design that you plan to implement. This design will combine elements of the three designs from the previous step into a single, coherent design. This refined design should complete the various ideas evoked in the previous step into a single coherent interface. It will serve as a blueprint for the design that you plan to implement.
+
+It is not necessary to create a high-fidelity design complete with all of the visual aspects of each element (e.g. choice of colors, etc), but it should illustrate all of the main interfaces and the interactions that they support.
+
+This prototype may be in the form of a paper prototype, an interactive wireframe prototype, or of a video prototype, as seen in class.
+
+Include some text describing the rationale that led to this final design, including why you chose the various elements that you combined into this final design. We are looking here for deep reflection that will draw on your analysis of the user and task constraints given the context identified in Milestone 1 (or any evolutions that you may have identified during your design exploration).
+
+
+
+Milestone 3: Software Prototype
+Conditions d’achèvement
+Ouvert le : dimanche 29 mars 2026, 00:00
+À rendre : vendredi 17 avril 2026, 17:00
+
+There is nothing to submit here on eCampus.  Instead, be sure to commit and push your code to your Gitlab repository.  Please send the gitlab repository to daniel.pires@telecom-paris.fr and eric.lecolinet@telecom-paris.fr . Your latest commit on your main/master branch will be graded. More information is available on the document : http://bit.ly/449vIT2
