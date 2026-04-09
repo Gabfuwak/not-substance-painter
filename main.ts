@@ -585,8 +585,8 @@ const shadingOptions = ['solid', 'rendered'] as const;
 type ShadingOption = (typeof shadingOptions)[number];
 
 const brushOptions = [
-  { value: 'size', label: 'Size', hint: 'Drag value right or up' },
-  { value: 'strength', label: 'Strength', hint: 'Drag value right or up' },
+  { value: 'size', label: 'Size' },
+  { value: 'strength', label: 'Strength' },
 ] as const;
 type BrushOptionValue = (typeof brushOptions)[number]['value'];
 
@@ -631,13 +631,8 @@ function renderBrushOptionsPanel() {
             >
               <span class="brush-option-copy">
                 <span class="brush-option-label">${option.label}</span>
-                <span class="brush-option-hint">${option.hint}</span>
               </span>
-              <span
-                class="brush-option-value"
-                data-drag-value-for="${option.value}"
-                title="Drag right or up to increase"
-              >${formatBrushControlValue(brushControlValues[option.value])}</span>
+              <span class="brush-option-value">${formatBrushControlValue(brushControlValues[option.value])}</span>
             </button>
           </div>
         `)
@@ -715,12 +710,12 @@ brushOptionsPanel?.addEventListener('click', (event) => {
 
 brushOptionsPanel?.addEventListener('mousedown', (event) => {
   const target = event.target as HTMLElement;
-  const value = target.closest<HTMLElement>('.brush-option-value');
-  if (!value) {
+  const button = target.closest<HTMLButtonElement>('.brush-option-body');
+  if (!button) {
     return;
   }
 
-  const control = value.dataset.dragValueFor as BrushOptionValue | undefined;
+  const control = button.dataset.brushOption as BrushOptionValue | undefined;
   if (!control) {
     return;
   }

@@ -385,10 +385,14 @@ body {
   font-size: 0.7rem;
 }
 
+.brush-option-body {
+  cursor: ew-resize;
+  min-height: 60px;
+}
+
 .brush-option-value {
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
-  cursor: ew-resize;
   user-select: none;
 }
 
