@@ -1,7 +1,17 @@
 // === camera.ts ===
 // Camera state + controls.
 
-export function initCamera(canvas) {
+export interface Camera {
+  position: number[];
+  target:   number[];
+  up:       number[];
+  fov:      number;
+  aspect:   number;
+  near:     number;
+  far:      number;
+}
+
+export function initCamera(canvas: HTMLCanvasElement): Camera {
   return {
     position: [278, 273, -800],
     target:   [278, 273, -799],
@@ -14,7 +24,7 @@ export function initCamera(canvas) {
 }
 
 // Returns { forward, right, up } as Float32Arrays — used for uniform packing
-export function getCameraBasis(camera) {
+export function getCameraBasis(camera: Camera) {
   const fx = camera.target[0] - camera.position[0];
   const fy = camera.target[1] - camera.position[1];
   const fz = camera.target[2] - camera.position[2];
@@ -36,7 +46,7 @@ export function getCameraBasis(camera) {
   return { forward, right, up };
 }
 
-export function pan(camera, dx, dy) {
+export function pan(camera: Camera, dx: number, dy: number): void {
   const fx = camera.target[0]-camera.position[0];
   const fy = camera.target[1]-camera.position[1];
   const fz = camera.target[2]-camera.position[2];
@@ -57,7 +67,7 @@ export function pan(camera, dx, dy) {
   camera.target[2]   += rghtZ*dx + camera.up[2]*dy;
 }
 
-export function moveForward(camera, distance) {
+export function moveForward(camera: Camera, distance: number): void {
   const { forward } = getCameraBasis(camera);
   for (let i = 0; i < 3; i++) {
     camera.position[i] += forward[i] * distance;
@@ -65,7 +75,7 @@ export function moveForward(camera, distance) {
   }
 }
 
-export function rotateYaw(camera, angle) {
+export function rotateYaw(camera: Camera, angle: number): void {
   const { forward } = getCameraBasis(camera);
   const dist = Math.hypot(
     camera.target[0]-camera.position[0],
@@ -80,7 +90,7 @@ export function rotateYaw(camera, angle) {
   camera.target[2] = camera.position[2] + fZ * dist;
 }
 
-export function rotatePitch(camera, angle) {
+export function rotatePitch(camera: Camera, angle: number): void {
   const { forward, up } = getCameraBasis(camera);
   const dist = Math.hypot(
     camera.target[0]-camera.position[0],
@@ -98,7 +108,7 @@ export function rotatePitch(camera, angle) {
 }
 
 // Orbital camera controls — left drag: orbit, middle drag / shift+drag: pan, scroll: zoom
-export function initOrbitalControls(canvas, camera) {
+export function initOrbitalControls(canvas: HTMLCanvasElement, camera: Camera): void {
   const dx0 = camera.position[0] - camera.target[0];
   const dy0 = camera.position[1] - camera.target[1];
   const dz0 = camera.position[2] - camera.target[2];
@@ -163,7 +173,7 @@ export function initOrbitalControls(canvas, camera) {
 }
 
 // Perspective projection — WebGPU NDC: z in [0, 1], column-major
-export function mat4Perspective(fovY, aspect, near, far) {
+export function mat4Perspective(fovY: number, aspect: number, near: number, far: number): Float32Array {
   const f  = 1.0 / Math.tan(fovY / 2);
   const nf = 1   / (near - far);
   const m  = new Float32Array(16);
@@ -176,7 +186,7 @@ export function mat4Perspective(fovY, aspect, near, far) {
 }
 
 // View matrix — column-major
-export function mat4LookAt(eye, center, up) {
+export function mat4LookAt(eye: number[], center: number[], up: number[]): Float32Array {
   const fx = center[0]-eye[0], fy = center[1]-eye[1], fz = center[2]-eye[2];
   const flen = Math.hypot(fx, fy, fz);
   const f0 = fx/flen, f1 = fy/flen, f2 = fz/flen;

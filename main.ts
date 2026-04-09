@@ -94,7 +94,8 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [rasterCode, uvViewCode, uvIdCode, paintCode, texture] = await Promise.all([
+  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, texture] = await Promise.all([
+    fetch('shaders/common.wgsl').then(r => r.text()),
     fetch('shaders/raster.wgsl').then(r => r.text()),
     fetch('shaders/uv_view.wgsl').then(r => r.text()),
     fetch('shaders/uv_id.wgsl').then(r => r.text()),
@@ -119,7 +120,7 @@ async function main() {
   );
 
   // --- 3D pipeline ---
-  const pipeline = createPipeline(device, format, rasterCode, [
+  const pipeline = createPipeline(device, format, commonCode + rasterCode, [
     { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
     { arrayStride: 8,  attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x2' }] },
   ]);
@@ -162,6 +163,7 @@ async function main() {
 
   const uvIdTextureView = uvIdTexture.createView();
   const uvIdDepthView   = uvIdDepth.createView();
+  const depthView       = depthTexture.createView();
 
   const uvIdBindGroup = device.createBindGroup({
     layout: uvIdPipeline.getBindGroupLayout(0),
@@ -286,7 +288,7 @@ async function main() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const uvPipeline = createPipeline(device, format, uvViewCode, [
+  const uvPipeline = createPipeline(device, format, commonCode + uvViewCode, [
     { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
   ], false, 'none');
 
@@ -351,6 +353,10 @@ async function main() {
 
   uvCanvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
+  // Pre-allocated write buffers — avoids per-frame heap allocation
+  const brushData       = new Float32Array(8);
+  const uvTransformData = new Float32Array(4);
+
   // --- Frame loop ---
   function frame() {
     const view = mat4LookAt(camera.position, camera.target, camera.up);
@@ -358,13 +364,14 @@ async function main() {
     const mvp  = _mat4Multiply(proj, view);
     device.queue.writeBuffer(uniformBuffer, 0, mvp);
 
-    device.queue.writeBuffer(brushBuffer, 0, new Float32Array([
-      brushState.uvX, brushState.uvY, brushState.radius, brushState.on,
-      brushState.painting, brushState.matId, 0, 0,
-    ]));
+    brushData[0] = brushState.uvX;   brushData[1] = brushState.uvY;
+    brushData[2] = brushState.radius; brushData[3] = brushState.on;
+    brushData[4] = brushState.painting; brushData[5] = brushState.matId;
+    device.queue.writeBuffer(brushBuffer, 0, brushData);
 
-    device.queue.writeBuffer(uvTransformBuffer, 0,
-      new Float32Array([uvState.scaleX, uvState.scaleY, uvState.offX, uvState.offY]));
+    uvTransformData[0] = uvState.scaleX; uvTransformData[1] = uvState.scaleY;
+    uvTransformData[2] = uvState.offX;   uvTransformData[3] = uvState.offY;
+    device.queue.writeBuffer(uvTransformBuffer, 0, uvTransformData);
 
     const encoder = device.createCommandEncoder();
 
@@ -400,7 +407,7 @@ async function main() {
         storeOp: 'store',
       }],
       depthStencilAttachment: {
-        view: depthTexture.createView(),
+        view: depthView,
         depthClearValue: 1.0,
         depthLoadOp:  'clear',
         depthStoreOp: 'store',

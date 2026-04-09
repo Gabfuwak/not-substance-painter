@@ -1,9 +1,17 @@
 // === mesh.ts ===
 // Geometry helpers: vec3, mat4, mesh primitives, OBJ loader
 
+export interface Mesh {
+  positions: Float32Array;
+  normals:   Float32Array;
+  uvs:       Float32Array;
+  colors:    Float32Array;
+  indices:   Uint32Array;
+}
+
 // --- Vec3 helpers ---
 
-export function _cross(a, b) {
+export function _cross(a: number[], b: number[]): number[] {
   return [
     a[1]*b[2] - a[2]*b[1],
     a[2]*b[0] - a[0]*b[2],
@@ -11,36 +19,36 @@ export function _cross(a, b) {
   ];
 }
 
-export function _sub(a, b) {
+export function _sub(a: number[], b: number[]): number[] {
   return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
 }
 
-export function _normalize(v) {
+export function _normalize(v: number[]): number[] {
   const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
   return [v[0]/len, v[1]/len, v[2]/len];
 }
 
 // --- Mat4 helpers (column-major) ---
 
-export function _mat4Identity() {
+export function _mat4Identity(): Float32Array {
   return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
 }
-export function _mat4Multiply(a, b) {
+export function _mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
   const out = new Float32Array(16);
   for (let col = 0; col < 4; col++)
     for (let row = 0; row < 4; row++)
       out[col*4+row] = a[0*4+row]*b[col*4+0] + a[1*4+row]*b[col*4+1] + a[2*4+row]*b[col*4+2] + a[3*4+row]*b[col*4+3];
   return out;
 }
-export function _mat4Translate(x, y, z) { const m = _mat4Identity(); m[12]=x; m[13]=y; m[14]=z; return m; }
-export function _mat4Scale(s)            { const m = _mat4Identity(); m[0]=s; m[5]=s; m[10]=s; return m; }
-export function _mat4RotateX(r) { const c=Math.cos(r), s=Math.sin(r), m=_mat4Identity(); m[5]=c; m[9]=-s; m[6]=s; m[10]=c; return m; }
-export function _mat4RotateY(r) { const c=Math.cos(r), s=Math.sin(r), m=_mat4Identity(); m[0]=c; m[8]=s; m[2]=-s; m[10]=c; return m; }
-export function _mat4RotateZ(r) { const c=Math.cos(r), s=Math.sin(r), m=_mat4Identity(); m[0]=c; m[4]=-s; m[1]=s; m[5]=c; return m; }
+export function _mat4Translate(x: number, y: number, z: number): Float32Array { const m = _mat4Identity(); m[12]=x; m[13]=y; m[14]=z; return m; }
+export function _mat4Scale(s: number): Float32Array                            { const m = _mat4Identity(); m[0]=s; m[5]=s; m[10]=s; return m; }
+export function _mat4RotateX(r: number): Float32Array { const c=Math.cos(r), s=Math.sin(r), m=_mat4Identity(); m[5]=c; m[9]=-s; m[6]=s; m[10]=c; return m; }
+export function _mat4RotateY(r: number): Float32Array { const c=Math.cos(r), s=Math.sin(r), m=_mat4Identity(); m[0]=c; m[8]=s; m[2]=-s; m[10]=c; return m; }
+export function _mat4RotateZ(r: number): Float32Array { const c=Math.cos(r), s=Math.sin(r), m=_mat4Identity(); m[0]=c; m[4]=-s; m[1]=s; m[5]=c; return m; }
 
 // Inverse of a TRS matrix (uniform scale assumed).
 // inv(T*R*S) upper-3x3 = (R*S)^T / s^2, translation = -upper3x3_inv * t
-export function _mat4InverseTRS(m) {
+export function _mat4InverseTRS(m: Float32Array): Float32Array {
   const s2 = m[0]*m[0] + m[1]*m[1] + m[2]*m[2]; // |col0|^2 = scale^2
   const inv = new Float32Array(16);
   inv[0]  = m[0]/s2;  inv[4]  = m[1]/s2;  inv[8]  = m[2]/s2;
@@ -54,7 +62,7 @@ export function _mat4InverseTRS(m) {
 }
 
 // Build a TRS matrix from { translation:[x,y,z], rotation:[rx,ry,rz], scale:s }
-export function get_mat({ translation: [tx,ty,tz], rotation: [rx,ry,rz], scale: s }) {
+export function get_mat({ translation: [tx,ty,tz], rotation: [rx,ry,rz], scale: s }: { translation: number[], rotation: number[], scale: number }): Float32Array {
   return _mat4Multiply(_mat4Translate(tx,ty,tz),
     _mat4Multiply(_mat4RotateY(ry),
       _mat4Multiply(_mat4RotateX(rx),
@@ -64,7 +72,7 @@ export function get_mat({ translation: [tx,ty,tz], rotation: [rx,ry,rz], scale: 
 // --- Mesh primitives ---
 
 // UV sphere centered at origin
-export function create_sphere(radius, latRes, lonRes, color) {
+export function create_sphere(radius: number, latRes: number, lonRes: number, color: number[]): Mesh {
   const positions = [], normals = [], uvs = [], colors = [], indices = [];
   for (let lat = 0; lat <= latRes; lat++) {
     const theta = lat * Math.PI / latRes;
@@ -93,7 +101,7 @@ export function create_sphere(radius, latRes, lonRes, color) {
 
 // 4 corners -> 2-triangle mesh with auto-computed flat normal
 // a, b, c, d: [x,y,z] arrays, color: [r,g,b]
-export function create_quad(a, b, c, d, color) {
+export function create_quad(a: number[], b: number[], c: number[], d: number[], color: number[]): Mesh {
   const normal = _normalize(_cross(_sub(a, b), _sub(a, d)));
 
   return {
@@ -105,7 +113,7 @@ export function create_quad(a, b, c, d, color) {
   };
 }
 
-export function merge_meshes(meshes) {
+export function merge_meshes(meshes: Mesh[]): Mesh {
   const positions = [], normals = [], uvs = [], colors = [], indices = [];
   let vertexOffset = 0;
 
@@ -129,7 +137,7 @@ export function merge_meshes(meshes) {
 
 // Apply a column-major mat4 to a mesh.
 // Positions: w=1, normals: upper 3x3 + renormalize.
-export function transformMesh(mesh, m) {
+export function transformMesh(mesh: Mesh, m: Float32Array): Mesh {
   const newPos  = new Float32Array(mesh.positions.length);
   const newNorm = new Float32Array(mesh.normals.length);
 
@@ -155,7 +163,7 @@ export function transformMesh(mesh, m) {
 
 // Parse a Wavefront OBJ string into a Mesh.
 // Handles v/vt/vn, fan triangulation, flat normal fallback.
-export function load_mesh(obj_text, color = [1, 1, 1]) {
+export function load_mesh(obj_text: string, color: number[] = [1, 1, 1]): Mesh {
   const pos_raw = [], norm_raw = [], uv_raw = [];
   const positions = [], normals = [], uvs = [], colors = [];
 
