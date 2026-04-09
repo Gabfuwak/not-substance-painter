@@ -111,7 +111,7 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, initialBitmap, normalBitmap] = await Promise.all([
+  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, initialBitmap, normalBitmap, roughnessBitmap] = await Promise.all([
     fetch('shaders/common.wgsl').then(r => r.text()),
     fetch('shaders/raster.wgsl').then(r => r.text()),
     fetch('shaders/uv_view.wgsl').then(r => r.text()),
@@ -120,14 +120,16 @@ async function main() {
     fetch('shaders/merge.wgsl').then(r => r.text()),
     fetch('assets/bunny_textures/albedo.jpeg').then(r => r.blob()).then(b => createImageBitmap(b)),
     fetch('assets/bunny_textures/normal.png').then(r => r.blob()).then(b => createImageBitmap(b)),
+    fetch('assets/bunny_textures/roughness.jpeg').then(r => r.blob()).then(b => createImageBitmap(b)),
   ]);
 
   const { data: initialPacked, width: texW, height: texH } = imageToPackedR32(initialBitmap);
   const { data: normalPacked, width: normalTexW, height: normalTexH } = imageToPackedR32(normalBitmap);
+  const { data: roughnessPacked, width: roughnessTexW, height: roughnessTexH } = imageToPackedR32(roughnessBitmap);
   let paintTex: GPUTexture;
-  let strokeTex: GPUTexture;
+  let strokeTex: GPUTexture;  // shared across all channels
   let normalPaintTex: GPUTexture;
-  let normalStrokeTex: GPUTexture;
+  let roughnessPaintTex: GPUTexture;
 
 
   // --- 3D pipeline ---
@@ -202,8 +204,7 @@ async function main() {
     compute: { module: device.createShaderModule({ code: paintCode }), entryPoint: 'main' },
   });
 
-  let paintBindGroup: GPUBindGroup;
-  let normalPaintBindGroup: GPUBindGroup;
+  let paintBindGroup: GPUBindGroup;  // shared: all channels use brush+strokeTex
 
   // --- Merge compute pipeline (strokeTex → paintTex, then clears strokeTex) ---
   const mergePipeline = device.createComputePipeline({
@@ -213,14 +214,20 @@ async function main() {
 
   let mergeBindGroup: GPUBindGroup;
   let normalMergeBindGroup: GPUBindGroup;
+  let roughnessMergeBindGroup: GPUBindGroup;
+
 
   function dispatchMerge() {
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginComputePass();
     pass.setPipeline(mergePipeline);
-    const isNormal = selectedChannel === 'normal';
-    pass.setBindGroup(0, isNormal ? normalMergeBindGroup : mergeBindGroup);
-    const tex = isNormal ? normalPaintTex : paintTex;
+    const bg = selectedChannel === 'normal'     ? normalMergeBindGroup
+             : selectedChannel === 'roughness'  ? roughnessMergeBindGroup
+             : mergeBindGroup;
+    const tex = selectedChannel === 'normal'    ? normalPaintTex
+              : selectedChannel === 'roughness' ? roughnessPaintTex
+              : paintTex;
+    pass.setBindGroup(0, bg);
     pass.dispatchWorkgroups(Math.ceil(tex.width / 8), Math.ceil(tex.height / 8));
     pass.end();
     device.queue.submit([encoder.finish()]);
@@ -230,10 +237,8 @@ async function main() {
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginComputePass();
     pass.setPipeline(paintPipeline);
-    const isNormal = selectedChannel === 'normal';
-    pass.setBindGroup(0, isNormal ? normalPaintBindGroup : paintBindGroup);
-    const tex = isNormal ? normalPaintTex : paintTex;
-    pass.dispatchWorkgroups(Math.ceil(tex.width / 8), Math.ceil(tex.height / 8));
+    pass.setBindGroup(0, paintBindGroup);  // same bind group for all channels
+    pass.dispatchWorkgroups(Math.ceil(strokeTex.width / 8), Math.ceil(strokeTex.height / 8));
     pass.end();
     device.queue.submit([encoder.finish()]);
   }
@@ -341,22 +346,16 @@ async function main() {
         { binding: 4, resource: paintTex.createView() },
         { binding: 5, resource: normalPaintTex.createView() },
         { binding: 6, resource: strokeTex.createView() },
-        { binding: 7, resource: normalStrokeTex.createView() },
+        { binding: 7, resource: roughnessPaintTex.createView() },
       ],
     });
 
+    // All channels share a single paint bind group (brush + strokeTex)
     paintBindGroup = device.createBindGroup({
       layout: paintPipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: brushBuffer } },
         { binding: 1, resource: strokeTex.createView() },
-      ],
-    });
-    normalPaintBindGroup = device.createBindGroup({
-      layout: paintPipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: brushBuffer } },
-        { binding: 1, resource: normalStrokeTex.createView() },
       ],
     });
 
@@ -371,7 +370,14 @@ async function main() {
       layout: mergePipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: normalPaintTex.createView() },
-        { binding: 1, resource: normalStrokeTex.createView() },
+        { binding: 1, resource: strokeTex.createView() },
+      ],
+    });
+    roughnessMergeBindGroup = device.createBindGroup({
+      layout: mergePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: roughnessPaintTex.createView() },
+        { binding: 1, resource: strokeTex.createView() },
       ],
     });
 
@@ -383,7 +389,7 @@ async function main() {
         { binding: 4, resource: paintTex.createView() },
         { binding: 5, resource: normalPaintTex.createView() },
         { binding: 6, resource: strokeTex.createView() },
-        { binding: 7, resource: normalStrokeTex.createView() },
+        { binding: 7, resource: roughnessPaintTex.createView() },
       ],
     });
   }
@@ -413,7 +419,7 @@ async function main() {
     rebuildBindGroups();
   }
 
-  // Create normal channel textures (loaded once from asset; not replaced by openTextureFile)
+  // Create normal channel texture (loaded once from asset; not replaced by openTextureFile)
   normalPaintTex = device.createTexture({
     size: [normalTexW, normalTexH],
     format: 'r32uint',
@@ -425,11 +431,19 @@ async function main() {
     { bytesPerRow: normalTexW * 4 },
     [normalTexW, normalTexH],
   );
-  normalStrokeTex = device.createTexture({
-    size: [normalTexW, normalTexH],
+
+  // Create roughness channel texture (loaded from asset)
+  roughnessPaintTex = device.createTexture({
+    size: [roughnessTexW, roughnessTexH],
     format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
   });
+  device.queue.writeTexture(
+    { texture: roughnessPaintTex },
+    roughnessPacked,
+    { bytesPerRow: roughnessTexW * 4 },
+    [roughnessTexW, roughnessTexH],
+  );
 
   refreshSurfaceResources(initialPacked, texW, texH);
 
@@ -478,7 +492,7 @@ async function main() {
   uvCanvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
   // Pre-allocated write buffers — avoids per-frame heap allocation
-  const brushData       = new Float32Array(10); // 40 bytes: uv(2) + radius + on + painting + r + g + b + strength + pad
+  const brushData       = new Float32Array(10); // 40 bytes: uv(2) + radius + on + painting + r + g + b + strength + channel_mode
   const uvTransformData = new Float32Array(5);  // scale(2) + offset(2) + channel_mode(1)
   const uniformTailData = new Float32Array(5);  // camera_pos(3) + shading_mode(1) + channel_mode(1)
 
@@ -487,7 +501,9 @@ async function main() {
     const view = mat4LookAt(camera.position, camera.target, camera.up);
     const proj = mat4Perspective(camera.fov, camera.aspect, camera.near, camera.far);
     const mvp  = _mat4Multiply(proj, view);
-    const channelMode = selectedChannel === 'normal' ? 1.0 : 0.0;
+    const channelMode = selectedChannel === 'normal'    ? 1.0
+                     : selectedChannel === 'roughness' ? 2.0
+                     : 0.0;
     device.queue.writeBuffer(uniformBuffer, 0, mvp);
     uniformTailData[0] = camera.position[0]; uniformTailData[1] = camera.position[1]; uniformTailData[2] = camera.position[2];
     uniformTailData[3] = selectedShading === 'rendered' ? 1.0 : 0.0;
@@ -501,6 +517,7 @@ async function main() {
     brushData[4] = brushState.painting;
     brushData[5] = brushState.r; brushData[6] = brushState.g; brushData[7] = brushState.b;
     brushData[8] = brushControlValues.strength;
+    brushData[9] = channelMode;
     device.queue.writeBuffer(brushBuffer, 0, brushData);
 
     uvTransformData[0] = uvState.scaleX; uvTransformData[1] = uvState.scaleY;

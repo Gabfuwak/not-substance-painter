@@ -1,12 +1,13 @@
 struct Brush {
-  uv:       vec2f,
-  radius:   f32,
-  on:       f32,
-  painting: f32,
-  r:        f32,
-  g:        f32,
-  b:        f32,
-  strength: f32,
+  uv:           vec2f,
+  radius:       f32,
+  on:           f32,
+  painting:     f32,
+  r:            f32,
+  g:            f32,
+  b:            f32,
+  strength:     f32,
+  channel_mode: f32,  // 0=base-color, 1=normal, 2=roughness
 };
 
 fn unpack_rgba8(packed: u32) -> vec4f {
@@ -28,19 +29,28 @@ fn surface_color(in: VertexOut, channel_mode: f32) -> vec4f {
   let tc   = vec2i(clamp(in.uv, vec2f(0.0), vec2f(1.0)) * (size - 1.0));
 
   var color: vec4f;
-  if channel_mode >= 0.5 {
+  if channel_mode >= 1.5 {
+    // Roughness channel — display R as grayscale
+    let rsize = vec2f(textureDimensions(roughnessPaintTex));
+    let rtc   = vec2i(clamp(in.uv, vec2f(0.0), vec2f(1.0)) * (rsize - 1.0));
+    let raw   = composite_layers(
+      textureLoad(roughnessPaintTex, rtc, 0).r,
+      select(0u, textureLoad(strokeTex, rtc, 0).r, brush.channel_mode >= 1.5),
+    );
+    color = vec4f(raw.r, raw.r, raw.r, 1.0);
+  } else if channel_mode >= 0.5 {
     // Normal channel
     let nsize = vec2f(textureDimensions(normalPaintTex));
     let ntc   = vec2i(clamp(in.uv, vec2f(0.0), vec2f(1.0)) * (nsize - 1.0));
     color = composite_layers(
-      textureLoad(normalPaintTex,  ntc, 0).r,
-      textureLoad(normalStrokeTex, ntc, 0).r,
+      textureLoad(normalPaintTex, ntc, 0).r,
+      select(0u, textureLoad(strokeTex, ntc, 0).r, brush.channel_mode >= 0.5 && brush.channel_mode < 1.5),
     );
   } else {
     // Base-color channel
     color = composite_layers(
-      textureLoad(paintTex,  tc, 0).r,
-      textureLoad(strokeTex, tc, 0).r,
+      textureLoad(paintTex, tc, 0).r,
+      select(0u, textureLoad(strokeTex, tc, 0).r, brush.channel_mode < 0.5),
     );
   }
 

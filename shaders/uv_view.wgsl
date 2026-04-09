@@ -8,10 +8,10 @@ struct Transform {
 
 @group(0) @binding(0) var<uniform> u: Transform;
 @group(0) @binding(3) var<uniform> brush: Brush;
-@group(0) @binding(4) var paintTex:       texture_2d<u32>;
-@group(0) @binding(5) var normalPaintTex: texture_2d<u32>;
-@group(0) @binding(6) var strokeTex:       texture_2d<u32>;
-@group(0) @binding(7) var normalStrokeTex: texture_2d<u32>;
+@group(0) @binding(4) var paintTex:          texture_2d<u32>;
+@group(0) @binding(5) var normalPaintTex:    texture_2d<u32>;
+@group(0) @binding(6) var strokeTex:         texture_2d<u32>;  // shared across all channels
+@group(0) @binding(7) var roughnessPaintTex: texture_2d<u32>;
 
 struct VertexOut {
   @builtin(position) pos: vec4f,
