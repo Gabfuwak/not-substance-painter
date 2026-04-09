@@ -391,3 +391,35 @@ body {
   cursor: ew-resize;
   user-select: none;
 }
+
+.brush-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, black);
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+#brush-color {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+#brush-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+#brush-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}

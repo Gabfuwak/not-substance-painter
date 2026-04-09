@@ -537,6 +537,14 @@ async function main() {
 
   requestAnimationFrame(frame);
 
+  const brushColorInput = document.getElementById('brush-color') as HTMLInputElement | null;
+  brushColorInput?.addEventListener('input', () => {
+    const hex = brushColorInput.value;
+    brushState.r = parseInt(hex.slice(1, 3), 16) / 255;
+    brushState.g = parseInt(hex.slice(3, 5), 16) / 255;
+    brushState.b = parseInt(hex.slice(5, 7), 16) / 255;
+  });
+
   openModelButton?.addEventListener('click', () => {
     openModelInput?.click();
   });
