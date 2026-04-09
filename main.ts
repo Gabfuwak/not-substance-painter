@@ -402,7 +402,7 @@ async function main() {
     const pass3D = encoder.beginRenderPass({
       colorAttachments: [{
         view: context.getCurrentTexture().createView(),
-        clearValue: { r: 0.15, g: 0.15, b: 0.15, a: 1 },
+        clearValue: { r: 0.11, g: 0.085, b: 0.07, a: 1 },
         loadOp:  'clear',
         storeOp: 'store',
       }],
@@ -425,7 +425,7 @@ async function main() {
     const passUV = encoder.beginRenderPass({
       colorAttachments: [{
         view: uvContext.getCurrentTexture().createView(),
-        clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1 },
+        clearValue: { r: 0.09, g: 0.07, b: 0.06, a: 1 },
         loadOp:  'clear',
         storeOp: 'store',
       }],
@@ -445,3 +445,271 @@ async function main() {
 }
 
 main().catch(console.error);
+
+// =============================================================================
+// UI — tool selection + brush subtools + parts/channel pickers
+// TODO: wire brushControlValues → brushState, selectedTool → input mode
+// =============================================================================
+
+const toolOptions = ['select', 'move', 'orbit', 'brush'] as const;
+type ToolOption = (typeof toolOptions)[number];
+
+const subtoolsByTool = {
+  select: [],
+  move: [],
+  orbit: [],
+  brush: [
+    { value: 'size', label: 'Size' },
+    { value: 'strength', label: 'Strength' },
+  ],
+} as const satisfies Record<ToolOption, readonly { value: string; label: string }[]>;
+
+let selectedTool: ToolOption = 'select';
+const toolButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tool-button'));
+const subtoolPanel = document.querySelector<HTMLDivElement>('#subtool-panel');
+const selectedSubtools: Record<ToolOption, string> = {
+  select: '',
+  move: '',
+  orbit: '',
+  brush: subtoolsByTool.brush[0].value,
+};
+const brushControlValues = {
+  size: 0.5,
+  strength: 1,
+};
+let brushDragState: {
+  control: keyof typeof brushControlValues;
+  startX: number;
+  startY: number;
+  startValue: number;
+} | null = null;
+
+function formatBrushControlValue(value: number) {
+  return value.toFixed(2).replace(/\.00$/, '');
+}
+
+function renderSubtoolPanel() {
+  if (!subtoolPanel) {
+    return;
+  }
+
+  const subtools = subtoolsByTool[selectedTool];
+  if (subtools.length === 0) {
+    subtoolPanel.innerHTML = '';
+    subtoolPanel.classList.add('is-empty');
+    return;
+  }
+
+  subtoolPanel.classList.remove('is-empty');
+  const selectedSubtool = selectedSubtools[selectedTool];
+
+  subtoolPanel.innerHTML = `
+    <div class="subtool-group" aria-label="${selectedTool} subtools">
+      ${subtools
+        .map((subtool) => `
+          <div class="subtool-control">
+            <button
+              class="subtool-button${subtool.value === selectedSubtool ? ' is-active' : ''}"
+              type="button"
+              data-subtool="${subtool.value}"
+              aria-pressed="${String(subtool.value === selectedSubtool)}"
+            >
+              <span class="subtool-label">${subtool.label}</span>
+              <span
+                class="subtool-value"
+                data-drag-value-for="${subtool.value}"
+                title="Drag right or up to increase"
+              >${formatBrushControlValue(brushControlValues[subtool.value as keyof typeof brushControlValues])}</span>
+            </button>
+          </div>
+        `)
+        .join('')}
+    </div>
+  `;
+}
+
+function syncSelectedTool() {
+  for (const button of toolButtons) {
+    const isActive = button.dataset.tool === selectedTool;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  }
+
+  renderSubtoolPanel();
+}
+
+syncSelectedTool();
+
+for (const button of toolButtons) {
+  button.addEventListener('click', () => {
+    const tool = button.dataset.tool as ToolOption | undefined;
+    if (!tool || !toolOptions.includes(tool)) {
+      return;
+    }
+
+    selectedTool = tool;
+    syncSelectedTool();
+  });
+}
+
+subtoolPanel?.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement;
+  const button = target.closest<HTMLButtonElement>('.subtool-button');
+  if (!button) {
+    return;
+  }
+
+  const subtool = button.dataset.subtool;
+  if (!subtool) {
+    return;
+  }
+
+  selectedSubtools[selectedTool] = subtool;
+  renderSubtoolPanel();
+});
+
+subtoolPanel?.addEventListener('mousedown', (event) => {
+  const target = event.target as HTMLElement;
+  const value = target.closest<HTMLElement>('.subtool-value');
+  if (!value) {
+    return;
+  }
+
+  const control = value.dataset.dragValueFor as keyof typeof brushControlValues | undefined;
+  if (!control) {
+    return;
+  }
+
+  event.preventDefault();
+  selectedSubtools[selectedTool] = control;
+  brushDragState = {
+    control,
+    startX: event.clientX,
+    startY: event.clientY,
+    startValue: brushControlValues[control],
+  };
+  renderSubtoolPanel();
+});
+
+window.addEventListener('mousemove', (event) => {
+  if (!brushDragState) {
+    return;
+  }
+
+  const deltaX = event.clientX - brushDragState.startX;
+  const deltaY = brushDragState.startY - event.clientY;
+  const nextValue = Math.min(1, Math.max(0, brushDragState.startValue + (deltaX + deltaY) * 0.005));
+  brushControlValues[brushDragState.control] = nextValue;
+  renderSubtoolPanel();
+});
+
+window.addEventListener('mouseup', () => {
+  brushDragState = null;
+});
+
+// Parts — placeholder list, to be replaced with actual mesh part names from the loaded OBJ
+// TODO: populate from mesh data once wired
+const parts = [
+  { value: 'part-0', label: 'Part 0' },
+] as const;
+
+type PartValue = string;
+
+let selectedPart: PartValue = parts[0].value;
+const partsPicker = document.querySelector<HTMLDivElement>('#parts-picker');
+
+function renderPartsPicker() {
+  if (!partsPicker) {
+    return;
+  }
+
+  partsPicker.innerHTML = `
+    <div class="parts-picker">
+      ${parts
+        .map((part) => `
+          <div class="part-option">
+            <button
+              class="part-option-body"
+              type="button"
+              data-part="${part.value}"
+              aria-pressed="${part.value === selectedPart ? 'true' : 'false'}"
+            >
+              <span class="part-option-label">${part.label}</span>
+            </button>
+          </div>
+        `)
+        .join('')}
+    </div>
+  `;
+}
+
+renderPartsPicker();
+
+partsPicker?.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement;
+  const button = target.closest<HTMLButtonElement>('.part-option-body');
+  if (!button) {
+    return;
+  }
+
+  const part = button.dataset.part;
+  if (!part) {
+    return;
+  }
+
+  selectedPart = part;
+  renderPartsPicker();
+});
+
+// Channels — only base-color is implemented; others are stubs for future work
+// TODO: wire selectedChannel → shader/paint target
+const channels = [
+  { value: 'base-color',        label: 'Base Color',        textureAliases: ['baseColor', 'albedo'],   description: 'Diffuse color / albedo map.' },
+  { value: 'normal',            label: 'Normal',            textureAliases: ['normal'],                description: 'Surface normal detail map.' },
+  { value: 'roughness',         label: 'Roughness',         textureAliases: ['roughness'],             description: 'Controls surface glossiness.' },
+  { value: 'metalness',         label: 'Metallic',          textureAliases: ['metallic'],              description: 'Marks metallic regions.' },
+  { value: 'ambient-occlusion', label: 'Ambient Occlusion', textureAliases: ['ao'],                    description: 'Darkens sheltered areas.' },
+  { value: 'emissive',          label: 'Emissive',          textureAliases: ['emissive'],              description: 'Self-illuminated regions.' },
+] as const;
+
+type ChannelValue = (typeof channels)[number]['value'];
+
+let selectedChannel: ChannelValue = channels[0].value;
+const channelPicker = document.querySelector<HTMLDivElement>('#channel-picker');
+
+function renderChannelPicker() {
+  if (!channelPicker) {
+    return;
+  }
+
+  channelPicker.innerHTML = `
+    <div class="channel-picker">
+      ${channels
+        .map((channel) => `
+          <label class="channel-option">
+            <input
+              type="radio"
+              name="selected-channel"
+              value="${channel.value}"
+              ${channel.value === selectedChannel ? 'checked' : ''}
+            >
+            <span class="channel-option-body">
+              <span class="channel-name">${channel.label}</span>
+            </span>
+          </label>
+        `)
+        .join('')}
+    </div>
+  `;
+}
+
+renderChannelPicker();
+
+channelPicker?.addEventListener('change', (event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.name !== 'selected-channel' || !input.checked) {
+    return;
+  }
+
+  selectedChannel = input.value as ChannelValue;
+});

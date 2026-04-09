@@ -8,18 +8,19 @@
 </head>
 <body>
   <div id="left-panel">
-    <button class="tool-button" type="button" aria-label="Move tool">
-      <img src="assets/move-tool.png" alt="" class="tool-icon">
+    <button class="tool-button is-active" type="button" aria-label="Select tool" aria-pressed="true" data-tool="select">
+      <img src="assets/blender/select_box.svg" alt="" class="tool-icon">
     </button>
-    <button class="tool-button" type="button" aria-label="Orbit tool">
-      <img src="assets/orbit-tool.png" alt="" class="tool-icon">
+    <button class="tool-button" type="button" aria-label="Move tool" aria-pressed="false" data-tool="move">
+      <img src="assets/blender/move.svg" alt="" class="tool-icon">
     </button>
-    <button class="tool-button" type="button" aria-label="Brush tool">
-      <img src="assets/brush-tool.png" alt="" class="tool-icon">
+    <button class="tool-button" type="button" aria-label="Orbit tool" aria-pressed="false" data-tool="orbit">
+      <img src="assets/blender/gesture_rotate.svg" alt="" class="tool-icon">
     </button>
-    <button class="tool-button" type="button" aria-label="Select tool">
-      <img src="assets/select-tool.png" alt="" class="tool-icon">
+    <button class="tool-button" type="button" aria-label="Brush tool" aria-pressed="false" data-tool="brush">
+      <img src="assets/blender/brush.svg" alt="" class="tool-icon">
     </button>
+    <div id="subtool-panel" aria-live="polite"></div>
   </div>
 
   <div id="main-panel">
@@ -35,11 +36,25 @@
 
   <div id="right-panel">
     <div id="parts-panel">
-      <!-- .obj mesh loader + textures -->
+      <div class="panel-section">
+        <div class="panel-well">
+          <div class="panel-well-header">
+            <h3>Parts</h3>
+          </div>
+          <div id="parts-picker" aria-live="polite"></div>
+        </div>
+      </div>
     </div>
 
-    <div id="materials-panel">
-      <!-- materials -->
+    <div id="channels-panel">
+      <div class="panel-section">
+        <div class="panel-well">
+          <div class="panel-well-header">
+            <h3>Channels</h3>
+          </div>
+          <div id="channel-picker" aria-live="polite"></div>
+        </div>
+      </div>
     </div>
   </div>
 
