@@ -2,6 +2,7 @@ import { initWebGPU, createPipeline } from './src/renderer';
 import { initCamera, initOrbitalControls, mat4Perspective, mat4LookAt } from './src/camera';
 import { load_mesh, _mat4Multiply } from './src/mesh';
 
+
 async function loadTexture(device: GPUDevice, url: string): Promise<GPUTexture> {
   let imageBitmap: ImageBitmap;
   try {
@@ -19,7 +20,7 @@ async function loadTexture(device: GPUDevice, url: string): Promise<GPUTexture> 
   const texture = device.createTexture({
     size: [imageBitmap.width, imageBitmap.height],
     format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.STORAGE_BINDING,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
   });
   device.queue.copyExternalImageToTexture({ source: imageBitmap }, { texture }, [imageBitmap.width, imageBitmap.height]);
   return texture;
@@ -64,16 +65,28 @@ async function main() {
   device.queue.writeBuffer(indexBuffer, 0, mesh.indices);
 
   const uniformBuffer = device.createBuffer({
-    size: 64, // mat4x4f = 16 floats * 4 bytes
+    size: 64,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Brush: vec2 uv, f32 radius, f32 active (16 bytes)
+  // Brush: vec2 uv, f32 radius, f32 on, f32 painting, f32 matId, f32 _pad0, f32 _pad1 = 32 bytes
   const brushBuffer = device.createBuffer({
-    size: 16,
+    size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const brushState = { uvX: 0, uvY: 0, radius: 0.05, on: 0 };
+  const brushState = { uvX: 0, uvY: 0, radius: 0.05, on: 0, painting: 0, matId: 1 }; // matId is f32 in the buffer — shader casts to u32, fine for small integers
+
+  // Materials: array<Material, 16> where Material = { baseColor: vec3f, roughness: f32 } = 16 bytes each
+  // Material 0 is reserved — matId 0 means "show base texture"
+  // Material 1+: user-defined paint materials
+  const materialsData = new Float32Array(16 * 4);
+  materialsData.set([0.2, 0.5, 1.0, 0.5], 1 * 4); // material 1: blue
+  materialsData.set([1.0, 0.2, 0.2, 0.5], 2 * 4); // material 2: red
+  const materialsBuf = device.createBuffer({
+    size: materialsData.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(materialsBuf, 0, materialsData);
 
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
@@ -81,14 +94,29 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [rasterCode, uvViewCode, uvIdCode, texture] = await Promise.all([
+  const [rasterCode, uvViewCode, uvIdCode, paintCode, texture] = await Promise.all([
     fetch('shaders/raster.wgsl').then(r => r.text()),
     fetch('shaders/uv_view.wgsl').then(r => r.text()),
     fetch('shaders/uv_id.wgsl').then(r => r.text()),
+    fetch('shaders/paint.wgsl').then(r => r.text()),
     loadTexture(device, 'assets/texture.png'),
   ]);
 
   const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
+
+  // Paint texture: r32uint, one material ID per texel, 0 = base texture — matches base texture resolution
+  const paintTex = device.createTexture({
+    size: [texture.width, texture.height],
+    format: 'r32uint',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+  });
+  // Initialize to 0 (all texels show base texture)
+  device.queue.writeTexture(
+    { texture: paintTex },
+    new Uint32Array(texture.width * texture.height),
+    { bytesPerRow: texture.width * 4 },
+    [texture.width, texture.height],
+  );
 
   // --- 3D pipeline ---
   const pipeline = createPipeline(device, format, rasterCode, [
@@ -103,12 +131,12 @@ async function main() {
       { binding: 1, resource: texture.createView() },
       { binding: 2, resource: sampler },
       { binding: 3, resource: { buffer: brushBuffer } },
+      { binding: 4, resource: paintTex.createView() },
+      { binding: 5, resource: { buffer: materialsBuf } },
     ],
   });
 
   // --- UV-ID offscreen pass ---
-  // rgba32float gives full float32 UV precision (no quantization at any texture size).
-  // It's core WebGPU for render attachment but log clearly if the device rejects it.
   let uvIdTexture: GPUTexture;
   let uvIdPipeline: GPURenderPipeline;
   try {
@@ -122,7 +150,7 @@ async function main() {
       { arrayStride: 8,  attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x2' }] },
     ]);
   } catch (e) {
-    console.error('rgba32float render attachment not supported on this device — UV click will not work.', e);
+    console.error('rgba32float render attachment not supported — UV click will not work.', e);
     throw e;
   }
 
@@ -140,15 +168,10 @@ async function main() {
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
 
-  // Staging buffer for 1-pixel readback (bytesPerRow must be multiple of 256)
   const stagingBuffer = device.createBuffer({
     size: 256,
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
-
-  function handleUVClick(uvX: number, uvY: number) {
-    console.log(`UV at click: (${uvX.toFixed(3)}, ${uvY.toFixed(3)})`);
-  }
 
   let readbackInFlight = false;
 
@@ -169,24 +192,53 @@ async function main() {
     return { hit, uvX, uvY };
   }
 
-  canvas.addEventListener('click', async (e) => {
-    if (readbackInFlight) return;
-    readbackInFlight = true;
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(e.clientX - rect.left);
-    const y = Math.floor(e.clientY - rect.top);
-    try {
-      const { hit, uvX, uvY } = await readUVAtPixel(x, y);
-      if (hit) handleUVClick(uvX, uvY);
-      else console.log('no hit');
-    } catch (e) {
-      console.error('UV readback failed', e);
-    } finally {
-      readbackInFlight = false;
-    }
+  // --- Paint compute pipeline ---
+  const paintPipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: device.createShaderModule({ code: paintCode }), entryPoint: 'main' },
+  });
+
+  const paintBindGroup = device.createBindGroup({
+    layout: paintPipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: brushBuffer } },
+      { binding: 1, resource: paintTex.createView() },
+    ],
+  });
+
+  function dispatchPaint() {
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginComputePass();
+    pass.setPipeline(paintPipeline);
+    pass.setBindGroup(0, paintBindGroup);
+    pass.dispatchWorkgroups(Math.ceil(paintTex.width / 8), Math.ceil(paintTex.height / 8));
+    pass.end();
+    device.queue.submit([encoder.finish()]);
+  }
+
+  function inViewport(el: Element, e: MouseEvent) {
+    const r = el.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  }
+
+  // --- Input ---
+  const objViewport = document.getElementById('object-viewport')!;
+  const uvViewport  = document.getElementById('uv-viewport')!;
+  let uvDragging = false;
+  let uvDragIsPan = false;
+  let uvLastMouse = { x: 0, y: 0 };
+  let isPainting = false;
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (!inViewport(objViewport, e)) return;
+    if (e.button !== 0 || e.altKey || e.shiftKey) return; // alt+drag = orbit, shift+drag = pan (both handled by camera)
+    isPainting = true;
+    brushState.painting = 1;
+    if (brushState.on) dispatchPaint();
   });
 
   canvas.addEventListener('mousemove', async (e) => {
+    if (!inViewport(objViewport, e)) return;
     if (readbackInFlight) return;
     readbackInFlight = true;
     const rect = canvas.getBoundingClientRect();
@@ -195,7 +247,11 @@ async function main() {
     try {
       const { hit, uvX, uvY } = await readUVAtPixel(x, y);
       brushState.on = hit ? 1 : 0;
-      if (hit) { brushState.uvX = uvX; brushState.uvY = uvY; }
+      if (hit) {
+        brushState.uvX = uvX;
+        brushState.uvY = uvY;
+        if (isPainting) dispatchPaint();
+      }
     } catch {
       // silently ignore readback errors during hover
     } finally {
@@ -205,7 +261,14 @@ async function main() {
 
   canvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
-  // --- UV canvas pipeline ---
+  window.addEventListener('mouseup', () => {
+    isPainting = false;
+    brushState.painting = 0;
+    uvDragging = false;
+    uvDragIsPan = false;
+  });
+
+  // --- UV canvas ---
   const uvCanvas = document.getElementById('uv-canvas') as HTMLCanvasElement;
   uvCanvas.width  = mainPanel.clientWidth;
   uvCanvas.height = mainPanel.clientHeight;
@@ -213,21 +276,16 @@ async function main() {
   const uvContext = uvCanvas.getContext('webgpu')!;
   uvContext.configure({ device, format, alphaMode: 'opaque' });
 
-  // The canvas is mainPanel-sized but only the center half in Y is visible
-  // (same trick as the 3D canvas). Visible area = full width × half height.
-  // UV square must appear square: scaleX * W == scaleY * H (px).
-  // Fit 90% of the smaller visible dimension (W vs H/2).
-  const uvVisibleAspect = uvCanvas.width / (uvCanvas.height / 2); // W / (H/2)
+  const uvVisibleAspect = uvCanvas.width / (uvCanvas.height / 2);
   const uvState = uvVisibleAspect >= 1
     ? { scaleX: 0.45 * uvCanvas.height / uvCanvas.width, scaleY: 0.45, offX: 0, offY: 0 }
     : { scaleX: 0.9,  scaleY: 0.9 * uvCanvas.width / uvCanvas.height, offX: 0, offY: 0 };
 
   const uvTransformBuffer = device.createBuffer({
-    size: 16, // vec2 scale + vec2 offset
+    size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // UV view: only UV buffer as vertex input (location 0), no depth
   const uvPipeline = createPipeline(device, format, uvViewCode, [
     { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
   ], false, 'none');
@@ -239,56 +297,44 @@ async function main() {
       { binding: 1, resource: texture.createView() },
       { binding: 2, resource: sampler },
       { binding: 3, resource: { buffer: brushBuffer } },
+      { binding: 4, resource: paintTex.createView() },
+      { binding: 5, resource: { buffer: materialsBuf } },
     ],
   });
 
-  // Pan: drag on UV canvas
-  let uvDragging = false;
-  let uvDragMoved = false;
-  let uvLastMouse = { x: 0, y: 0 };
   uvCanvas.addEventListener('mousedown', (e) => {
+    if (!inViewport(uvViewport, e)) return;
+    if (e.button !== 0) return;
     uvDragging = true;
-    uvDragMoved = false;
+    uvDragIsPan = e.altKey || e.shiftKey || e.ctrlKey; // alt/shift/ctrl+drag = pan, plain drag = paint
     uvLastMouse = { x: e.clientX, y: e.clientY };
+    if (!uvDragIsPan) {
+      isPainting = true;
+      brushState.painting = 1;
+      if (brushState.on) dispatchPaint();
+    }
   });
   window.addEventListener('mousemove', (e) => {
-    if (!uvDragging) return;
-    uvDragMoved = true;
+    if (!uvDragging || !uvDragIsPan) return;
     uvState.offX += (e.clientX - uvLastMouse.x) / uvCanvas.width  *  2;
-    uvState.offY += (e.clientY - uvLastMouse.y) / uvCanvas.height * -2; // Y flipped
+    uvState.offY += (e.clientY - uvLastMouse.y) / uvCanvas.height * -2;
     uvLastMouse = { x: e.clientX, y: e.clientY };
   });
-  window.addEventListener('mouseup', () => { uvDragging = false; });
 
-  // Zoom: scroll on UV canvas, centered on cursor
   uvCanvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
     const rect = uvCanvas.getBoundingClientRect();
     const cx = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
     const cy = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
-    // Keep the point under the cursor fixed: newOffset = cx*(1-factor) + offset*factor
     uvState.offX = cx * (1 - factor) + uvState.offX * factor;
     uvState.offY = cy * (1 - factor) + uvState.offY * factor;
     uvState.scaleX *= factor;
     uvState.scaleY *= factor;
   }, { passive: false });
 
-  uvCanvas.addEventListener('click', (e) => {
-    if (uvDragMoved) return;
-    const rect = uvCanvas.getBoundingClientRect();
-    // Canvas-space click → clip coords [-1, 1]
-    const clipX = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
-    const clipY = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
-    // Invert the UV→clip transform from uv_view.wgsl:
-    //   clip = (uv*2-1, 1-uv*2) * scale + offset
-    const uvX = ((clipX - uvState.offX) / uvState.scaleX + 1) / 2;
-    const uvY = (1 - (clipY - uvState.offY) / uvState.scaleY) / 2;
-    if (uvX < 0 || uvX > 1 || uvY < 0 || uvY > 1) { console.log('no hit'); return; }
-    handleUVClick(uvX, uvY);
-  });
-
   uvCanvas.addEventListener('mousemove', (e) => {
+    if (!inViewport(uvViewport, e)) return;
     const rect = uvCanvas.getBoundingClientRect();
     const clipX = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
     const clipY = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
@@ -296,20 +342,33 @@ async function main() {
     const uvY = (1 - (clipY - uvState.offY) / uvState.scaleY) / 2;
     const hit = uvX >= 0 && uvX <= 1 && uvY >= 0 && uvY <= 1;
     brushState.on = hit ? 1 : 0;
-    if (hit) { brushState.uvX = uvX; brushState.uvY = uvY; }
+    if (hit) {
+      brushState.uvX = uvX;
+      brushState.uvY = uvY;
+      if (isPainting) dispatchPaint();
+    }
   });
 
   uvCanvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
+  // --- Frame loop ---
   function frame() {
     const view = mat4LookAt(camera.position, camera.target, camera.up);
     const proj = mat4Perspective(camera.fov, camera.aspect, camera.near, camera.far);
     const mvp  = _mat4Multiply(proj, view);
     device.queue.writeBuffer(uniformBuffer, 0, mvp);
 
+    device.queue.writeBuffer(brushBuffer, 0, new Float32Array([
+      brushState.uvX, brushState.uvY, brushState.radius, brushState.on,
+      brushState.painting, brushState.matId, 0, 0,
+    ]));
+
+    device.queue.writeBuffer(uvTransformBuffer, 0,
+      new Float32Array([uvState.scaleX, uvState.scaleY, uvState.offX, uvState.offY]));
+
     const encoder = device.createCommandEncoder();
 
-    // UV-ID pass (offscreen, used for click → UV lookup)
+    // UV-ID pass
     const passId = encoder.beginRenderPass({
       colorAttachments: [{
         view: uvIdTextureView,
@@ -354,14 +413,6 @@ async function main() {
     pass3D.setIndexBuffer(indexBuffer, 'uint32');
     pass3D.drawIndexed(mesh.indices.length);
     pass3D.end();
-
-    // Write brush uniform
-    device.queue.writeBuffer(brushBuffer, 0,
-      new Float32Array([brushState.uvX, brushState.uvY, brushState.radius, brushState.on]));
-
-    // Write UV transform
-    device.queue.writeBuffer(uvTransformBuffer, 0,
-      new Float32Array([uvState.scaleX, uvState.scaleY, uvState.offX, uvState.offY]));
 
     // UV pass
     const passUV = encoder.beginRenderPass({

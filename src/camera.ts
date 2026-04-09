@@ -123,7 +123,7 @@ export function initOrbitalControls(canvas, camera) {
     lastY = e.clientY;
     if (e.button === 1) { panning = true; e.preventDefault(); return; }
     if (e.button === 0 && e.shiftKey) { panning = true; return; }
-    if (e.button === 0) orbiting = true;
+    if (e.button === 0 && e.altKey) { orbiting = true; return; }
   });
 
   window.addEventListener('mouseup', () => { orbiting = false; panning = false; });
