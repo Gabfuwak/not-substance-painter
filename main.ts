@@ -80,17 +80,6 @@ async function main() {
   });
   const brushState = { uvX: 0, uvY: 0, radius: 0.05, on: 0, painting: 0, r: 0.8, g: 0.3, b: 0.1 };
 
-  // Materials: array<Material, 16> where Material = { baseColor: vec3f, roughness: f32 } = 16 bytes each
-  // Material 0 is reserved — matId 0 means "show base texture"
-  // Material 1+: user-defined paint materials
-  const materialsData = new Float32Array(16 * 4);
-  materialsData.set([0.2, 0.5, 1.0, 0.5], 1 * 4); // material 1: blue
-  materialsData.set([1.0, 0.2, 0.2, 0.5], 2 * 4); // material 2: red
-  const materialsBuf = device.createBuffer({
-    size: materialsData.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(materialsBuf, 0, materialsData);
 
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
@@ -147,7 +136,6 @@ async function main() {
       { binding: 2, resource: sampler },
       { binding: 3, resource: { buffer: brushBuffer } },
       { binding: 4, resource: paintTex.createView() },
-      { binding: 5, resource: { buffer: materialsBuf } },
       { binding: 6, resource: strokeTex.createView() },
     ],
   });
@@ -357,7 +345,6 @@ async function main() {
       { binding: 2, resource: sampler },
       { binding: 3, resource: { buffer: brushBuffer } },
       { binding: 4, resource: paintTex.createView() },
-      { binding: 5, resource: { buffer: materialsBuf } },
       { binding: 6, resource: strokeTex.createView() },
     ],
   });
