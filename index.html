@@ -23,6 +23,14 @@
           <img src="assets/blender/brush.generic.svg" alt="" class="tool-icon">
         </button>
       </div>
+      <div class="viewport-shading" aria-label="Viewport shading">
+        <button class="shading-button is-active" type="button" aria-label="Solid shading" aria-pressed="true" data-shading="solid" title="Viewport Shading: Solid">
+          <img src="assets/blender/shading.solid.svg" alt="" class="shading-icon">
+        </button>
+        <button class="shading-button" type="button" aria-label="Rendered shading" aria-pressed="false" data-shading="rendered" title="Viewport Shading: Rendered">
+          <img src="assets/blender/shading.rendered.svg" alt="" class="shading-icon">
+        </button>
+      </div>
       <div id="object-viewport">
         <canvas id="object-canvas"></canvas>
         <!-- todo: make it have a dynamic size (iirc easiest is to have it check size on page creation) -->

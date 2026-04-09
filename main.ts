@@ -454,6 +454,9 @@ main().catch(console.error);
 const toolOptions = ['select', 'move', 'orbit', 'brush'] as const;
 type ToolOption = (typeof toolOptions)[number];
 
+const shadingOptions = ['solid', 'rendered'] as const;
+type ShadingOption = (typeof shadingOptions)[number];
+
 const brushOptions = [
   { value: 'size', label: 'Size', hint: 'Drag value right or up' },
   { value: 'strength', label: 'Strength', hint: 'Drag value right or up' },
@@ -461,7 +464,9 @@ const brushOptions = [
 type BrushOptionValue = (typeof brushOptions)[number]['value'];
 
 let selectedTool: ToolOption = 'select';
+let selectedShading: ShadingOption = 'solid';
 const toolButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tool-button'));
+const shadingButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.shading-button'));
 const rightPanel = document.querySelector<HTMLDivElement>('#right-panel');
 const brushPanel = document.querySelector<HTMLDivElement>('#brush-panel');
 const brushOptionsPanel = document.querySelector<HTMLDivElement>('#brush-options-panel');
@@ -540,6 +545,28 @@ for (const button of toolButtons) {
 
     selectedTool = tool;
     syncSelectedTool();
+  });
+}
+
+function syncSelectedShading() {
+  for (const button of shadingButtons) {
+    const isActive = button.dataset.shading === selectedShading;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  }
+}
+
+syncSelectedShading();
+
+for (const button of shadingButtons) {
+  button.addEventListener('click', () => {
+    const shading = button.dataset.shading as ShadingOption | undefined;
+    if (!shading || !shadingOptions.includes(shading)) {
+      return;
+    }
+
+    selectedShading = shading;
+    syncSelectedShading();
   });
 }
 
