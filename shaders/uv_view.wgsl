@@ -1,14 +1,17 @@
 // Prepended with common.wgsl (Brush, Material structs + fs)
 
 struct Transform {
-  scale:  vec2f,
-  offset: vec2f,
+  scale:        vec2f,
+  offset:       vec2f,
+  channel_mode: f32,   // 0 = base-color, 1 = normal
 };
 
 @group(0) @binding(0) var<uniform> u: Transform;
 @group(0) @binding(3) var<uniform> brush: Brush;
-@group(0) @binding(4) var paintTex: texture_2d<u32>;
-@group(0) @binding(6) var strokeTex: texture_2d<u32>;
+@group(0) @binding(4) var paintTex:       texture_2d<u32>;
+@group(0) @binding(5) var normalPaintTex: texture_2d<u32>;
+@group(0) @binding(6) var strokeTex:       texture_2d<u32>;
+@group(0) @binding(7) var normalStrokeTex: texture_2d<u32>;
 
 struct VertexOut {
   @builtin(position) pos: vec4f,
@@ -26,5 +29,5 @@ fn vs(@location(0) uv: vec2f) -> VertexOut {
 
 @fragment
 fn fs(in: VertexOut) -> @location(0) vec4f {
-  return surface_color(in);
+  return surface_color(in, u.channel_mode);
 }
