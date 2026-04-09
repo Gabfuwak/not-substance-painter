@@ -7,3 +7,6 @@ Add tooltip descriptions:
 - Move tool
 - Orbit tool
 - Brush tool
+- Descriptions for each channel
+- Descriptions for shading mode: channel, render
+- Make tooltip appear faster
