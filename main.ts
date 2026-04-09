@@ -3,31 +3,16 @@ import { initCamera, initOrbitalControls, mat4Perspective, mat4LookAt } from './
 import { load_mesh, _mat4Multiply } from './src/mesh';
 
 
-async function loadTexture(device: GPUDevice, url: string): Promise<GPUTexture> {
-  let imageBitmap: ImageBitmap;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('not found');
-    imageBitmap = await createImageBitmap(await res.blob());
-  } catch {
-    // fallback: 1×1 white pixel
-    const canvas = new OffscreenCanvas(1, 1);
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, 1, 1);
-    imageBitmap = await createImageBitmap(canvas);
+function imageToPackedR32(imageBitmap: ImageBitmap): { data: Uint32Array, width: number, height: number } {
+  const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(imageBitmap, 0, 0);
+  const pixels = ctx.getImageData(0, 0, imageBitmap.width, imageBitmap.height).data;
+  const packed = new Uint32Array(imageBitmap.width * imageBitmap.height);
+  for (let i = 0; i < packed.length; i++) {
+    packed[i] = pixels[i*4] | (pixels[i*4+1] << 8) | (pixels[i*4+2] << 16) | (255 << 24);
   }
-  return createTextureFromImageBitmap(device, imageBitmap);
-}
-
-function createTextureFromImageBitmap(device: GPUDevice, imageBitmap: ImageBitmap): GPUTexture {
-  const texture = device.createTexture({
-    size: [imageBitmap.width, imageBitmap.height],
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  device.queue.copyExternalImageToTexture({ source: imageBitmap }, { texture }, [imageBitmap.width, imageBitmap.height]);
-  return texture;
+  return { data: packed, width: imageBitmap.width, height: imageBitmap.height };
 }
 
 async function main() {
@@ -95,9 +80,8 @@ async function main() {
   }
 
   async function openTextureFile(file: File) {
-    const imageBitmap = await createImageBitmap(file);
-    const nextTexture = createTextureFromImageBitmap(device, imageBitmap);
-    refreshSurfaceResources(nextTexture);
+    const { data, width, height } = imageToPackedR32(await createImageBitmap(file));
+    refreshSurfaceResources(data, width, height);
   }
 
   const uniformBuffer = device.createBuffer({
@@ -119,18 +103,17 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, initialTexture] = await Promise.all([
+  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, initialBitmap] = await Promise.all([
     fetch('shaders/common.wgsl').then(r => r.text()),
     fetch('shaders/raster.wgsl').then(r => r.text()),
     fetch('shaders/uv_view.wgsl').then(r => r.text()),
     fetch('shaders/uv_id.wgsl').then(r => r.text()),
     fetch('shaders/paint.wgsl').then(r => r.text()),
     fetch('shaders/merge.wgsl').then(r => r.text()),
-    loadTexture(device, 'assets/bunny_textures/albedo.jpeg'),
+    fetch('assets/bunny_textures/albedo.jpeg').then(r => r.blob()).then(b => createImageBitmap(b)),
   ]);
 
-  const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
-  let texture = initialTexture;
+  const { data: initialPacked, width: texW, height: texH } = imageToPackedR32(initialBitmap);
   let paintTex: GPUTexture;
   let strokeTex: GPUTexture;
 
@@ -330,28 +313,24 @@ async function main() {
 
   let uvBindGroup: GPUBindGroup;
 
-  function refreshSurfaceResources(nextTexture: GPUTexture) {
-    if (texture && texture !== nextTexture) {
-      texture.destroy();
-    }
+  function refreshSurfaceResources(packedData: Uint32Array, width: number, height: number) {
     paintTex?.destroy();
     strokeTex?.destroy();
 
-    texture = nextTexture;
     paintTex = device.createTexture({
-      size: [texture.width, texture.height],
+      size: [width, height],
       format: 'r32uint',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
     });
     device.queue.writeTexture(
       { texture: paintTex },
-      new Uint32Array(texture.width * texture.height),
-      { bytesPerRow: texture.width * 4 },
-      [texture.width, texture.height],
+      packedData,
+      { bytesPerRow: width * 4 },
+      [width, height],
     );
 
     strokeTex = device.createTexture({
-      size: [texture.width, texture.height],
+      size: [width, height],
       format: 'r32uint',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
     });
@@ -360,8 +339,6 @@ async function main() {
       layout: pipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: uniformBuffer } },
-        { binding: 1, resource: texture.createView() },
-        { binding: 2, resource: sampler },
         { binding: 3, resource: { buffer: brushBuffer } },
         { binding: 4, resource: paintTex.createView() },
         { binding: 6, resource: strokeTex.createView() },
@@ -388,8 +365,6 @@ async function main() {
       layout: uvPipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: uvTransformBuffer } },
-        { binding: 1, resource: texture.createView() },
-        { binding: 2, resource: sampler },
         { binding: 3, resource: { buffer: brushBuffer } },
         { binding: 4, resource: paintTex.createView() },
         { binding: 6, resource: strokeTex.createView() },
@@ -397,7 +372,7 @@ async function main() {
     });
   }
 
-  refreshSurfaceResources(texture);
+  refreshSurfaceResources(initialPacked, texW, texH);
 
   uvCanvas.addEventListener('mousedown', (e) => {
     if (!inViewport(uvViewport, e)) return;

@@ -24,10 +24,9 @@ fn fs(in: VertexOut) -> @location(0) vec4f {
   let s_rgb     = vec3f(f32((s_packed>>0u)&0xFFu), f32((s_packed>>8u)&0xFFu), f32((s_packed>>16u)&0xFFu)) / 255.0;
   let s_opacity = f32((s_packed >> 24u) & 0xFFu) / 255.0;
 
-  let baseColor = textureSample(uTexture, uSampler, in.uv);
-  // Layer: base texture → committed paint → in-progress stroke
-  var color = mix(baseColor, vec4f(c_rgb, 1.0), c_opacity);
-  color     = mix(color,     vec4f(s_rgb, 1.0), s_opacity);
+  // Layer: committed paint (initialized from PNG) → in-progress stroke
+  var color = vec4f(c_rgb, c_opacity);
+  color     = mix(color, vec4f(s_rgb, 1.0), s_opacity);
 
   if brush.on > 0.5 {
     let d         = distance(in.uv, brush.uv);
