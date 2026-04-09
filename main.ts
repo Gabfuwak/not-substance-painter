@@ -94,12 +94,13 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, texture] = await Promise.all([
+  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, texture] = await Promise.all([
     fetch('shaders/common.wgsl').then(r => r.text()),
     fetch('shaders/raster.wgsl').then(r => r.text()),
     fetch('shaders/uv_view.wgsl').then(r => r.text()),
     fetch('shaders/uv_id.wgsl').then(r => r.text()),
     fetch('shaders/paint.wgsl').then(r => r.text()),
+    fetch('shaders/merge.wgsl').then(r => r.text()),
     loadTexture(device, 'assets/texture.png'),
   ]);
 
@@ -119,6 +120,15 @@ async function main() {
     [texture.width, texture.height],
   );
 
+  // Stroke texture: current in-progress stroke only — merged into paintTex on mouseup, then cleared
+  // WebGPU zero-initializes textures, so no explicit clear needed at creation
+  const strokeTex = device.createTexture({
+    size: [texture.width, texture.height],
+    format: 'r32uint',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+  });
+
+
   // --- 3D pipeline ---
   const pipeline = createPipeline(device, format, commonCode + rasterCode, [
     { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
@@ -134,6 +144,7 @@ async function main() {
       { binding: 3, resource: { buffer: brushBuffer } },
       { binding: 4, resource: paintTex.createView() },
       { binding: 5, resource: { buffer: materialsBuf } },
+      { binding: 6, resource: strokeTex.createView() },
     ],
   });
 
@@ -194,7 +205,7 @@ async function main() {
     return { hit, uvX, uvY };
   }
 
-  // --- Paint compute pipeline ---
+  // --- Paint compute pipeline (writes to strokeTex) ---
   const paintPipeline = device.createComputePipeline({
     layout: 'auto',
     compute: { module: device.createShaderModule({ code: paintCode }), entryPoint: 'main' },
@@ -204,9 +215,33 @@ async function main() {
     layout: paintPipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: brushBuffer } },
-      { binding: 1, resource: paintTex.createView() },
+      { binding: 1, resource: strokeTex.createView() },
     ],
   });
+
+  // --- Merge compute pipeline (strokeTex → paintTex, then clears strokeTex) ---
+  const mergePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: device.createShaderModule({ code: mergeCode }), entryPoint: 'main' },
+  });
+
+  const mergeBindGroup = device.createBindGroup({
+    layout: mergePipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: paintTex.createView() },
+      { binding: 1, resource: strokeTex.createView() },
+    ],
+  });
+
+  function dispatchMerge() {
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginComputePass();
+    pass.setPipeline(mergePipeline);
+    pass.setBindGroup(0, mergeBindGroup);
+    pass.dispatchWorkgroups(Math.ceil(paintTex.width / 8), Math.ceil(paintTex.height / 8));
+    pass.end();
+    device.queue.submit([encoder.finish()]);
+  }
 
   function dispatchPaint() {
     const encoder = device.createCommandEncoder();
@@ -263,7 +298,24 @@ async function main() {
 
   canvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
+  document.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.ctrlKey) {
+      changeBrushSize(e.deltaY < 0 ? 0.05 : -0.05);
+    } else if (inViewport(uvViewport, e as unknown as MouseEvent)) {
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const rect = uvCanvas.getBoundingClientRect();
+      const cx = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
+      const cy = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
+      uvState.offX = cx * (1 - factor) + uvState.offX * factor;
+      uvState.offY = cy * (1 - factor) + uvState.offY * factor;
+      uvState.scaleX *= factor;
+      uvState.scaleY *= factor;
+    }
+  }, { passive: false });
+
   window.addEventListener('mouseup', () => {
+    if (isPainting) dispatchMerge();
     isPainting = false;
     brushState.painting = 0;
     uvDragging = false;
@@ -301,6 +353,7 @@ async function main() {
       { binding: 3, resource: { buffer: brushBuffer } },
       { binding: 4, resource: paintTex.createView() },
       { binding: 5, resource: { buffer: materialsBuf } },
+      { binding: 6, resource: strokeTex.createView() },
     ],
   });
 
@@ -323,17 +376,11 @@ async function main() {
     uvLastMouse = { x: e.clientX, y: e.clientY };
   });
 
-  uvCanvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    const rect = uvCanvas.getBoundingClientRect();
-    const cx = ((e.clientX - rect.left) / uvCanvas.width)  *  2 - 1;
-    const cy = 1 - ((e.clientY - rect.top)  / uvCanvas.height) *  2;
-    uvState.offX = cx * (1 - factor) + uvState.offX * factor;
-    uvState.offY = cy * (1 - factor) + uvState.offY * factor;
-    uvState.scaleX *= factor;
-    uvState.scaleY *= factor;
-  }, { passive: false });
+  function changeBrushSize(delta: number) {
+    brushControlValues.size = Math.min(1, Math.max(0, brushControlValues.size + delta));
+    renderSubtoolPanel();
+  }
+
 
   uvCanvas.addEventListener('mousemove', (e) => {
     if (!inViewport(uvViewport, e)) return;
@@ -364,9 +411,12 @@ async function main() {
     const mvp  = _mat4Multiply(proj, view);
     device.queue.writeBuffer(uniformBuffer, 0, mvp);
 
+    brushState.radius = 0.005 + brushControlValues.size * 0.195;
+
     brushData[0] = brushState.uvX;   brushData[1] = brushState.uvY;
     brushData[2] = brushState.radius; brushData[3] = brushState.on;
     brushData[4] = brushState.painting; brushData[5] = brushState.matId;
+    brushData[6] = brushControlValues.strength;
     device.queue.writeBuffer(brushBuffer, 0, brushData);
 
     uvTransformData[0] = uvState.scaleX; uvTransformData[1] = uvState.scaleY;

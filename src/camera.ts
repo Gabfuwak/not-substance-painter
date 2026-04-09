@@ -164,6 +164,7 @@ export function initOrbitalControls(canvas: HTMLCanvasElement, camera: Camera): 
 
   canvas.addEventListener('wheel', (e: WheelEvent) => {
     e.preventDefault();
+    if (e.ctrlKey) return;
     radius *= 1 + e.deltaY * 0.001;
     radius = Math.max(0.01, radius);
     syncPosition();

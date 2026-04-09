@@ -10,6 +10,7 @@ struct Uniforms {
 @group(0) @binding(3) var<uniform> brush: Brush;
 @group(0) @binding(4) var paintTex: texture_2d<u32>;
 @group(0) @binding(5) var<uniform> materials: array<Material, 16>;
+@group(0) @binding(6) var strokeTex: texture_2d<u32>;
 
 struct VertexOut {
   @builtin(position) pos: vec4f,

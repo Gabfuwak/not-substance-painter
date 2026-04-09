@@ -4,7 +4,7 @@ struct Brush {
   on:       f32,
   painting: f32,
   matId:    f32,
-  _pad0:    f32,
+  strength: f32,
   _pad1:    f32,
 };
 
@@ -15,14 +15,23 @@ struct Material {
 
 @fragment
 fn fs(in: VertexOut) -> @location(0) vec4f {
-  let size  = vec2f(textureDimensions(paintTex));
-  let tc    = vec2i(clamp(in.uv, vec2f(0.0), vec2f(1.0)) * (size - 1.0));
-  let matId = textureLoad(paintTex, tc, 0).r;
+  let size = vec2f(textureDimensions(paintTex));
+  let tc   = vec2i(clamp(in.uv, vec2f(0.0), vec2f(1.0)) * (size - 1.0));
+
+  let committed_packed   = textureLoad(paintTex,  tc, 0).r;
+  let committed_matId    = committed_packed >> 16u;
+  let committed_opacity  = f32(committed_packed & 0xFFFFu) / 65535.0;
+
+  let stroke_packed  = textureLoad(strokeTex, tc, 0).r;
+  let stroke_matId   = stroke_packed >> 16u;
+  let stroke_opacity = f32(stroke_packed & 0xFFFFu) / 65535.0;
 
   let baseColor = textureSample(uTexture, uSampler, in.uv);
-  // min clamp guards against out-of-bounds; future: expand per-material logic here (smart materials)
-  let mat = materials[min(matId, 15u)];
-  var color = select(vec4f(mat.baseColor, 1.0), baseColor, matId == 0u);
+  // Layer: base → committed → stroke
+  let committed_mat = materials[min(committed_matId, 15u)];
+  let stroke_mat    = materials[min(stroke_matId, 15u)];
+  var color = mix(baseColor, vec4f(committed_mat.baseColor, 1.0), committed_opacity);
+  color     = mix(color,     vec4f(stroke_mat.baseColor,    1.0), stroke_opacity);
 
   if brush.on > 0.5 {
     let d         = distance(in.uv, brush.uv);
