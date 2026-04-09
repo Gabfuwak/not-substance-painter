@@ -10,9 +10,16 @@
   <div id="main-panel">
     <div class="viewport-panel viewport-panel--object">
       <div class="viewport-tools" aria-label="Tools">
-        <button class="tool-button is-active" type="button" aria-label="Select tool" aria-pressed="true" data-tool="select">
-          <img src="assets/blender/select_box.svg" alt="" class="tool-icon">
-        </button>
+        <div class="tool-utility-group" aria-label="File actions">
+          <button class="tool-utility-button" id="open-model-button" type="button" aria-label="Open file">
+            <img src="assets/blender/file_folder.svg" alt="" class="tool-icon">
+          </button>
+          <button class="tool-utility-button" id="save-model-button" type="button" aria-label="Save file">
+            <img src="assets/blender/file_tick.svg" alt="" class="tool-icon">
+          </button>
+        </div>
+        <input id="open-model-input" type="file" accept=".obj,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,model/obj,text/plain" hidden>
+        <div class="tool-divider" aria-hidden="true"></div>
         <button class="tool-button" type="button" aria-label="Move tool" aria-pressed="false" data-tool="move">
           <img src="assets/blender/ops.transform.translate.svg" alt="" class="tool-icon">
         </button>

@@ -17,6 +17,10 @@ async function loadTexture(device: GPUDevice, url: string): Promise<GPUTexture> 
     ctx.fillRect(0, 0, 1, 1);
     imageBitmap = await createImageBitmap(canvas);
   }
+  return createTextureFromImageBitmap(device, imageBitmap);
+}
+
+function createTextureFromImageBitmap(device: GPUDevice, imageBitmap: ImageBitmap): GPUTexture {
   const texture = device.createTexture({
     size: [imageBitmap.width, imageBitmap.height],
     format: 'rgba8unorm',
@@ -29,6 +33,8 @@ async function loadTexture(device: GPUDevice, url: string): Promise<GPUTexture> 
 async function main() {
   const canvas    = document.getElementById('object-canvas') as HTMLCanvasElement;
   const mainPanel = document.getElementById('main-panel')!;
+  const openModelButton = document.getElementById('open-model-button') as HTMLButtonElement | null;
+  const openModelInput = document.getElementById('open-model-input') as HTMLInputElement | null;
   canvas.width  = mainPanel.clientWidth;
   canvas.height = mainPanel.clientHeight;
 
@@ -47,26 +53,52 @@ async function main() {
     return null;
   });
 
-  const objText = await fetch('assets/cube.obj').then(r => r.text());
-  const mesh = load_mesh(objText);
+  let mesh = load_mesh(await fetch('assets/cube.obj').then(r => r.text()));
+  let vertexBuffer: GPUBuffer;
+  let uvBuffer: GPUBuffer;
+  let indexBuffer: GPUBuffer;
 
-  const vertexBuffer = device.createBuffer({
-    size: mesh.positions.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(vertexBuffer, 0, mesh.positions);
+  function uploadMesh(nextMesh: ReturnType<typeof load_mesh>) {
+    vertexBuffer?.destroy();
+    uvBuffer?.destroy();
+    indexBuffer?.destroy();
 
-  const uvBuffer = device.createBuffer({
-    size: mesh.uvs.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(uvBuffer, 0, mesh.uvs);
+    mesh = nextMesh;
+    vertexBuffer = device.createBuffer({
+      size: mesh.positions.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(vertexBuffer, 0, mesh.positions);
 
-  const indexBuffer = device.createBuffer({
-    size: mesh.indices.byteLength,
-    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(indexBuffer, 0, mesh.indices);
+    uvBuffer = device.createBuffer({
+      size: mesh.uvs.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(uvBuffer, 0, mesh.uvs);
+
+    indexBuffer = device.createBuffer({
+      size: mesh.indices.byteLength,
+      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(indexBuffer, 0, mesh.indices);
+  }
+
+  uploadMesh(mesh);
+
+  async function openObjFile(file: File) {
+    const objText = await file.text();
+    const nextMesh = load_mesh(objText);
+    if (nextMesh.indices.length === 0) {
+      throw new Error('Selected OBJ has no faces to render.');
+    }
+    uploadMesh(nextMesh);
+  }
+
+  async function openTextureFile(file: File) {
+    const imageBitmap = await createImageBitmap(file);
+    const nextTexture = createTextureFromImageBitmap(device, imageBitmap);
+    refreshSurfaceResources(nextTexture);
+  }
 
   const uniformBuffer = device.createBuffer({
     size: 64,
@@ -98,7 +130,7 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
-  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, texture] = await Promise.all([
+  const [commonCode, rasterCode, uvViewCode, uvIdCode, paintCode, mergeCode, initialTexture] = await Promise.all([
     fetch('shaders/common.wgsl').then(r => r.text()),
     fetch('shaders/raster.wgsl').then(r => r.text()),
     fetch('shaders/uv_view.wgsl').then(r => r.text()),
@@ -109,28 +141,9 @@ async function main() {
   ]);
 
   const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
-
-  // Paint texture: r32uint, one material ID per texel, 0 = base texture — matches base texture resolution
-  const paintTex = device.createTexture({
-    size: [texture.width, texture.height],
-    format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
-  });
-  // Initialize to 0 (all texels show base texture)
-  device.queue.writeTexture(
-    { texture: paintTex },
-    new Uint32Array(texture.width * texture.height),
-    { bytesPerRow: texture.width * 4 },
-    [texture.width, texture.height],
-  );
-
-  // Stroke texture: current in-progress stroke only — merged into paintTex on mouseup, then cleared
-  // WebGPU zero-initializes textures, so no explicit clear needed at creation
-  const strokeTex = device.createTexture({
-    size: [texture.width, texture.height],
-    format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
-  });
+  let texture = initialTexture;
+  let paintTex: GPUTexture;
+  let strokeTex: GPUTexture;
 
 
   // --- 3D pipeline ---
@@ -139,18 +152,7 @@ async function main() {
     { arrayStride: 8,  attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x2' }] },
   ]);
 
-  const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: { buffer: uniformBuffer } },
-      { binding: 1, resource: texture.createView() },
-      { binding: 2, resource: sampler },
-      { binding: 3, resource: { buffer: brushBuffer } },
-      { binding: 4, resource: paintTex.createView() },
-      { binding: 5, resource: { buffer: materialsBuf } },
-      { binding: 6, resource: strokeTex.createView() },
-    ],
-  });
+  let bindGroup: GPUBindGroup;
 
   // --- UV-ID offscreen pass ---
   let uvIdTexture: GPUTexture;
@@ -215,13 +217,7 @@ async function main() {
     compute: { module: device.createShaderModule({ code: paintCode }), entryPoint: 'main' },
   });
 
-  const paintBindGroup = device.createBindGroup({
-    layout: paintPipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: { buffer: brushBuffer } },
-      { binding: 1, resource: strokeTex.createView() },
-    ],
-  });
+  let paintBindGroup: GPUBindGroup;
 
   // --- Merge compute pipeline (strokeTex → paintTex, then clears strokeTex) ---
   const mergePipeline = device.createComputePipeline({
@@ -229,13 +225,7 @@ async function main() {
     compute: { module: device.createShaderModule({ code: mergeCode }), entryPoint: 'main' },
   });
 
-  const mergeBindGroup = device.createBindGroup({
-    layout: mergePipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: paintTex.createView() },
-      { binding: 1, resource: strokeTex.createView() },
-    ],
-  });
+  let mergeBindGroup: GPUBindGroup;
 
   function dispatchMerge() {
     const encoder = device.createCommandEncoder();
@@ -349,18 +339,78 @@ async function main() {
     { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
   ], false, 'none');
 
-  const uvBindGroup = device.createBindGroup({
-    layout: uvPipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: { buffer: uvTransformBuffer } },
-      { binding: 1, resource: texture.createView() },
-      { binding: 2, resource: sampler },
-      { binding: 3, resource: { buffer: brushBuffer } },
-      { binding: 4, resource: paintTex.createView() },
-      { binding: 5, resource: { buffer: materialsBuf } },
-      { binding: 6, resource: strokeTex.createView() },
-    ],
-  });
+  let uvBindGroup: GPUBindGroup;
+
+  function refreshSurfaceResources(nextTexture: GPUTexture) {
+    if (texture && texture !== nextTexture) {
+      texture.destroy();
+    }
+    paintTex?.destroy();
+    strokeTex?.destroy();
+
+    texture = nextTexture;
+    paintTex = device.createTexture({
+      size: [texture.width, texture.height],
+      format: 'r32uint',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+    device.queue.writeTexture(
+      { texture: paintTex },
+      new Uint32Array(texture.width * texture.height),
+      { bytesPerRow: texture.width * 4 },
+      [texture.width, texture.height],
+    );
+
+    strokeTex = device.createTexture({
+      size: [texture.width, texture.height],
+      format: 'r32uint',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+    });
+
+    bindGroup = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: uniformBuffer } },
+        { binding: 1, resource: texture.createView() },
+        { binding: 2, resource: sampler },
+        { binding: 3, resource: { buffer: brushBuffer } },
+        { binding: 4, resource: paintTex.createView() },
+        { binding: 5, resource: { buffer: materialsBuf } },
+        { binding: 6, resource: strokeTex.createView() },
+      ],
+    });
+
+    paintBindGroup = device.createBindGroup({
+      layout: paintPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: brushBuffer } },
+        { binding: 1, resource: strokeTex.createView() },
+      ],
+    });
+
+    mergeBindGroup = device.createBindGroup({
+      layout: mergePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: paintTex.createView() },
+        { binding: 1, resource: strokeTex.createView() },
+      ],
+    });
+
+    uvBindGroup = device.createBindGroup({
+      layout: uvPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: uvTransformBuffer } },
+        { binding: 1, resource: texture.createView() },
+        { binding: 2, resource: sampler },
+        { binding: 3, resource: { buffer: brushBuffer } },
+        { binding: 4, resource: paintTex.createView() },
+        { binding: 5, resource: { buffer: materialsBuf } },
+        { binding: 6, resource: strokeTex.createView() },
+      ],
+    });
+  }
+
+  refreshSurfaceResources(texture);
 
   uvCanvas.addEventListener('mousedown', (e) => {
     if (!inViewport(uvViewport, e)) return;
@@ -498,6 +548,31 @@ async function main() {
   }
 
   requestAnimationFrame(frame);
+
+  openModelButton?.addEventListener('click', () => {
+    openModelInput?.click();
+  });
+
+  openModelInput?.addEventListener('change', async () => {
+    const file = openModelInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      if (file.name.toLowerCase().endsWith('.obj')) {
+        await openObjFile(file);
+      } else if (file.type.startsWith('image/')) {
+        await openTextureFile(file);
+      } else {
+        throw new Error(`Unsupported file type: ${file.name}`);
+      }
+    } catch (error) {
+      console.error('Failed to open file.', error);
+    } finally {
+      openModelInput.value = '';
+    }
+  });
 }
 
 main().catch(console.error);
