@@ -108,7 +108,7 @@ export function rotatePitch(camera: Camera, angle: number): void {
 }
 
 // Orbital camera controls — left drag: orbit, middle drag / shift+drag: pan, scroll: zoom
-export function initOrbitalControls(canvas: HTMLCanvasElement, camera: Camera): void {
+export function initOrbitalControls(canvas: HTMLCanvasElement, camera: Camera, getMode?: () => 'orbit' | 'pan' | null): void {
   const dx0 = camera.position[0] - camera.target[0];
   const dy0 = camera.position[1] - camera.target[1];
   const dz0 = camera.position[2] - camera.target[2];
@@ -134,6 +134,11 @@ export function initOrbitalControls(canvas: HTMLCanvasElement, camera: Camera): 
     if (e.button === 1) { panning = true; e.preventDefault(); return; }
     if (e.button === 0 && e.shiftKey) { panning = true; return; }
     if (e.button === 0 && e.altKey) { orbiting = true; return; }
+    if (e.button === 0 && !e.shiftKey && !e.altKey) {
+      const mode = getMode?.();
+      if (mode === 'orbit') { orbiting = true; return; }
+      if (mode === 'pan')   { panning  = true; return; }
+    }
   });
 
   window.addEventListener('mouseup', () => { orbiting = false; panning = false; });

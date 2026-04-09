@@ -41,7 +41,11 @@ async function main() {
   camera.near     = 0.1;
   camera.far      = 100;
 
-  initOrbitalControls(canvas, camera);
+  initOrbitalControls(canvas, camera, () => {
+    if (selectedTool === 'orbit') return 'orbit';
+    if (selectedTool === 'move')  return 'pan';
+    return null;
+  });
 
   const objText = await fetch('assets/cube.obj').then(r => r.text());
   const mesh = load_mesh(objText);
@@ -269,6 +273,7 @@ async function main() {
   canvas.addEventListener('mousedown', (e) => {
     if (!inViewport(objViewport, e)) return;
     if (e.button !== 0 || e.altKey || e.shiftKey) return; // alt+drag = orbit, shift+drag = pan (both handled by camera)
+    if (selectedTool !== 'brush') return;
     isPainting = true;
     brushState.painting = 1;
     if (brushState.on) dispatchPaint();
@@ -361,8 +366,9 @@ async function main() {
     if (!inViewport(uvViewport, e)) return;
     if (e.button !== 0) return;
     uvDragging = true;
-    uvDragIsPan = e.altKey || e.shiftKey || e.ctrlKey; // alt/shift/ctrl+drag = pan, plain drag = paint
+    uvDragIsPan = e.altKey || selectedTool === 'move' || selectedTool === 'orbit'; // alt+drag or move/orbit tool = pan UV
     uvLastMouse = { x: e.clientX, y: e.clientY };
+    if (!uvDragIsPan && selectedTool !== 'brush') return;
     if (!uvDragIsPan) {
       isPainting = true;
       brushState.painting = 1;
