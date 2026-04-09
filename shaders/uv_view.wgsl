@@ -23,3 +23,8 @@ fn vs(@location(0) uv: vec2f) -> VertexOut {
   out.uv  = uv;
   return out;
 }
+
+@fragment
+fn fs(in: VertexOut) -> @location(0) vec4f {
+  return surface_color(in);
+}

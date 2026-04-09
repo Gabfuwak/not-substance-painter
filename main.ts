@@ -41,11 +41,13 @@ async function main() {
   let mesh = load_mesh(await fetch('assets/bunny.obj').then(r => r.text()));
   let vertexBuffer: GPUBuffer;
   let uvBuffer: GPUBuffer;
+  let normalsBuffer: GPUBuffer;
   let indexBuffer: GPUBuffer;
 
   function uploadMesh(nextMesh: ReturnType<typeof load_mesh>) {
     vertexBuffer?.destroy();
     uvBuffer?.destroy();
+    normalsBuffer?.destroy();
     indexBuffer?.destroy();
 
     mesh = nextMesh;
@@ -60,6 +62,12 @@ async function main() {
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(uvBuffer, 0, mesh.uvs);
+
+    normalsBuffer = device.createBuffer({
+      size: mesh.normals.byteLength,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(normalsBuffer, 0, mesh.normals);
 
     indexBuffer = device.createBuffer({
       size: mesh.indices.byteLength,
@@ -85,7 +93,7 @@ async function main() {
   }
 
   const uniformBuffer = device.createBuffer({
-    size: 64,
+    size: 80,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -122,6 +130,7 @@ async function main() {
   const pipeline = createPipeline(device, format, commonCode + rasterCode, [
     { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
     { arrayStride: 8,  attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x2' }] },
+    { arrayStride: 12, attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x3' }] },
   ]);
 
   let bindGroup: GPUBindGroup;
@@ -428,6 +437,7 @@ async function main() {
     const proj = mat4Perspective(camera.fov, camera.aspect, camera.near, camera.far);
     const mvp  = _mat4Multiply(proj, view);
     device.queue.writeBuffer(uniformBuffer, 0, mvp);
+    device.queue.writeBuffer(uniformBuffer, 64, new Float32Array([...camera.position, selectedShading === 'rendered' ? 1.0 : 0.0]));
 
     brushState.radius = 0.005 + brushControlValues.size * 0.195;
 
@@ -486,6 +496,7 @@ async function main() {
     pass3D.setBindGroup(0, bindGroup);
     pass3D.setVertexBuffer(0, vertexBuffer);
     pass3D.setVertexBuffer(1, uvBuffer);
+    pass3D.setVertexBuffer(2, normalsBuffer);
     pass3D.setIndexBuffer(indexBuffer, 'uint32');
     pass3D.drawIndexed(mesh.indices.length);
     pass3D.end();

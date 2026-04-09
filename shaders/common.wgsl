@@ -10,8 +10,7 @@ struct Brush {
 };
 
 
-@fragment
-fn fs(in: VertexOut) -> @location(0) vec4f {
+fn surface_color(in: VertexOut) -> vec4f {
   let size = vec2f(textureDimensions(paintTex));
   let tc   = vec2i(clamp(in.uv, vec2f(0.0), vec2f(1.0)) * (size - 1.0));
 
