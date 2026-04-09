@@ -91,6 +91,20 @@ body {
   gap: 12px;
 }
 
+.viewport-shading {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, black);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 94%, #172130);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
 .tool-button {
   width: 56px;
   height: 56px;
@@ -129,6 +143,40 @@ body {
 .tool-icon {
   width: 28px;
   height: 28px;
+  object-fit: contain;
+  display: block;
+}
+
+.shading-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.shading-button:hover {
+  background: color-mix(in srgb, var(--panel) 74%, var(--accent));
+}
+
+.shading-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, #dbe8f6);
+  outline-offset: 2px;
+}
+
+.shading-button.is-active,
+.shading-button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--line) 64%, var(--panel));
+  border-color: color-mix(in srgb, var(--line) 92%, var(--muted));
+}
+
+.shading-icon {
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   display: block;
 }
