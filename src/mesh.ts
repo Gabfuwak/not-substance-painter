@@ -181,7 +181,7 @@ export function load_mesh(obj_text: string, color: number[] = [1, 1, 1]): Mesh {
           positions.push(pos_raw[pi], pos_raw[pi+1], pos_raw[pi+2]);
           if (n) { const ni = (parseInt(n) - 1) * 3; normals.push(norm_raw[ni], norm_raw[ni+1], norm_raw[ni+2]); }
           else   { normals.push(0, 0, 0); }
-          if (t) { const ti = (parseInt(t) - 1) * 2; uvs.push(uv_raw[ti], uv_raw[ti+1]); }
+          if (t) { const ti = (parseInt(t) - 1) * 2; uvs.push(uv_raw[ti], 1 - uv_raw[ti+1]); }
           else   { uvs.push(0, 0); }
           colors.push(color[0], color[1], color[2]);
         }
@@ -212,4 +212,3 @@ export function load_mesh(obj_text: string, color: number[] = [1, 1, 1]): Mesh {
     indices,
   };
 }
-

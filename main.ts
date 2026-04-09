@@ -53,7 +53,7 @@ async function main() {
     return null;
   });
 
-  let mesh = load_mesh(await fetch('assets/cube.obj').then(r => r.text()));
+  let mesh = load_mesh(await fetch('assets/bunny.obj').then(r => r.text()));
   let vertexBuffer: GPUBuffer;
   let uvBuffer: GPUBuffer;
   let indexBuffer: GPUBuffer;
@@ -137,7 +137,7 @@ async function main() {
     fetch('shaders/uv_id.wgsl').then(r => r.text()),
     fetch('shaders/paint.wgsl').then(r => r.text()),
     fetch('shaders/merge.wgsl').then(r => r.text()),
-    loadTexture(device, 'assets/texture.png'),
+    loadTexture(device, 'assets/bunny_textures/albedo.jpeg'),
   ]);
 
   const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
