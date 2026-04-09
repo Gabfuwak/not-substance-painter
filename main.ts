@@ -105,24 +105,13 @@ async function main() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Brush: vec2 uv, f32 radius, f32 on, f32 painting, f32 matId, f32 _pad0, f32 _pad1 = 32 bytes
+  // Brush: vec2 uv(8) + radius(4) + on(4) + painting(4) + r(4) + g(4) + b(4) + strength(4) = 36, padded to 40
   const brushBuffer = device.createBuffer({
-    size: 32,
+    size: 40,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const brushState = { uvX: 0, uvY: 0, radius: 0.05, on: 0, painting: 0, matId: 1 }; // matId is f32 in the buffer — shader casts to u32, fine for small integers
+  const brushState = { uvX: 0, uvY: 0, radius: 0.05, on: 0, painting: 0, r: 0.8, g: 0.3, b: 0.1 };
 
-  // Materials: array<Material, 16> where Material = { baseColor: vec3f, roughness: f32 } = 16 bytes each
-  // Material 0 is reserved — matId 0 means "show base texture"
-  // Material 1+: user-defined paint materials
-  const materialsData = new Float32Array(16 * 4);
-  materialsData.set([0.2, 0.5, 1.0, 0.5], 1 * 4); // material 1: blue
-  materialsData.set([1.0, 0.2, 0.2, 0.5], 2 * 4); // material 2: red
-  const materialsBuf = device.createBuffer({
-    size: materialsData.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(materialsBuf, 0, materialsData);
 
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
@@ -375,7 +364,6 @@ async function main() {
         { binding: 2, resource: sampler },
         { binding: 3, resource: { buffer: brushBuffer } },
         { binding: 4, resource: paintTex.createView() },
-        { binding: 5, resource: { buffer: materialsBuf } },
         { binding: 6, resource: strokeTex.createView() },
       ],
     });
@@ -404,7 +392,6 @@ async function main() {
         { binding: 2, resource: sampler },
         { binding: 3, resource: { buffer: brushBuffer } },
         { binding: 4, resource: paintTex.createView() },
-        { binding: 5, resource: { buffer: materialsBuf } },
         { binding: 6, resource: strokeTex.createView() },
       ],
     });
@@ -457,7 +444,7 @@ async function main() {
   uvCanvas.addEventListener('mouseleave', () => { brushState.on = 0; });
 
   // Pre-allocated write buffers — avoids per-frame heap allocation
-  const brushData       = new Float32Array(8);
+  const brushData       = new Float32Array(10); // 40 bytes: uv(2) + radius + on + painting + r + g + b + strength + pad
   const uvTransformData = new Float32Array(4);
 
   // --- Frame loop ---
@@ -471,8 +458,9 @@ async function main() {
 
     brushData[0] = brushState.uvX;   brushData[1] = brushState.uvY;
     brushData[2] = brushState.radius; brushData[3] = brushState.on;
-    brushData[4] = brushState.painting; brushData[5] = brushState.matId;
-    brushData[6] = brushControlValues.strength;
+    brushData[4] = brushState.painting;
+    brushData[5] = brushState.r; brushData[6] = brushState.g; brushData[7] = brushState.b;
+    brushData[8] = brushControlValues.strength;
     device.queue.writeBuffer(brushBuffer, 0, brushData);
 
     uvTransformData[0] = uvState.scaleX; uvTransformData[1] = uvState.scaleY;
