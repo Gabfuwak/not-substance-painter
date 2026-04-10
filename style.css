@@ -304,9 +304,13 @@ body {
   gap: 0;
 }
 
-.brush-option,
-.channel-option {
+.brush-option {
   display: block;
+}
+
+.channel-option {
+  display: flex;
+  align-items: stretch;
 }
 
 .channel-option input {
@@ -319,7 +323,6 @@ body {
 .channel-option-body {
   display: flex;
   align-items: center;
-  width: 100%;
   padding: 14px 20px;
   border: 0;
   border-radius: 0;
@@ -332,8 +335,17 @@ body {
   position: relative;
 }
 
+.brush-option-body {
+  width: 100%;
+}
+
+.channel-option-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .brush-option-body[aria-pressed="true"],
-.channel-option input:checked + .channel-option-body {
+.channel-option-body:has(input:checked) {
   color: var(--ink);
   background: color-mix(in srgb, var(--line) 64%, var(--panel));
   border-color: color-mix(in srgb, var(--line) 92%, var(--muted));
@@ -364,6 +376,44 @@ body {
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--accent) 45%, var(--line)),
     inset 0 -1px 0 color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.channel-actions {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, black);
+  gap: 0;
+}
+
+.channel-option:first-child .channel-actions {
+  border-top: 0;
+}
+
+.channel-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.55;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.channel-action-btn:hover {
+  background: color-mix(in srgb, var(--panel) 55%, var(--accent));
+  opacity: 1;
+}
+
+.channel-action-btn .tool-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .brush-option-body {

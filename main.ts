@@ -20,6 +20,7 @@ async function main() {
   const mainPanel = document.getElementById('main-panel')!;
   const openModelButton = document.getElementById('open-model-button') as HTMLButtonElement | null;
   const openModelInput = document.getElementById('open-model-input') as HTMLInputElement | null;
+  const openChannelInput = document.getElementById('open-channel-input') as HTMLInputElement | null;
   canvas.width  = mainPanel.clientWidth;
   canvas.height = mainPanel.clientHeight;
 
@@ -610,22 +611,129 @@ async function main() {
 
   openModelInput?.addEventListener('change', async () => {
     const file = openModelInput.files?.[0];
-    if (!file) {
-      return;
-    }
-
+    if (!file) return;
     try {
-      if (file.name.toLowerCase().endsWith('.obj')) {
-        await openObjFile(file);
-      } else if (file.type.startsWith('image/')) {
-        await openTextureFile(file);
-      } else {
-        throw new Error(`Unsupported file type: ${file.name}`);
-      }
+      await openObjFile(file);
     } catch (error) {
-      console.error('Failed to open file.', error);
+      console.error('Failed to open OBJ file.', error);
     } finally {
       openModelInput.value = '';
+    }
+  });
+
+  // Channel-specific load/save
+  let pendingChannelLoad: ChannelValue | null = null;
+
+  openChannelInput?.addEventListener('change', async () => {
+    const file = openChannelInput.files?.[0];
+    if (!file || !pendingChannelLoad) return;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const { data, width, height } = imageToPackedR32(bitmap);
+      if (pendingChannelLoad === 'base-color') {
+        refreshSurfaceResources(data, width, height);
+      } else if (pendingChannelLoad === 'normal') {
+        normalPaintTex?.destroy();
+        normalPaintTex = device.createTexture({
+          size: [width, height],
+          format: 'r32uint',
+          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+        });
+        device.queue.writeTexture({ texture: normalPaintTex }, data, { bytesPerRow: width * 4 }, [width, height]);
+        rebuildBindGroups();
+      } else if (pendingChannelLoad === 'roughness') {
+        roughnessPaintTex?.destroy();
+        roughnessPaintTex = device.createTexture({
+          size: [width, height],
+          format: 'r32uint',
+          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+        });
+        device.queue.writeTexture({ texture: roughnessPaintTex }, data, { bytesPerRow: width * 4 }, [width, height]);
+        rebuildBindGroups();
+      }
+    } catch (error) {
+      console.error('Failed to load channel texture.', error);
+    } finally {
+      openChannelInput.value = '';
+      pendingChannelLoad = null;
+    }
+  });
+
+  async function saveChannelTexture(tex: GPUTexture, filename: string, isColor: boolean) {
+    const w = tex.width;
+    const h = tex.height;
+    const alignedBytesPerRow = Math.ceil(w * 4 / 256) * 256;
+    const bufferSize = alignedBytesPerRow * h;
+
+    const readbackTex = device.createTexture({
+      size: [w, h],
+      format: 'r32uint',
+      usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+    });
+    const stagingBuffer = device.createBuffer({ size: bufferSize, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+
+    const enc = device.createCommandEncoder();
+    enc.copyTextureToTexture({ texture: tex }, { texture: readbackTex }, [w, h]);
+    enc.copyTextureToBuffer({ texture: readbackTex }, { buffer: stagingBuffer, bytesPerRow: alignedBytesPerRow }, [w, h]);
+    device.queue.submit([enc.finish()]);
+
+    await stagingBuffer.mapAsync(GPUMapMode.READ);
+    const raw = new Uint32Array(stagingBuffer.getMappedRange());
+    const rgba = new Uint8ClampedArray(w * h * 4);
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const src = y * (alignedBytesPerRow / 4) + x;
+        const dst = (y * w + x) * 4;
+        const packed = raw[src];
+        if (isColor) {
+          rgba[dst + 0] = (packed >> 0)  & 0xff;
+          rgba[dst + 1] = (packed >> 8)  & 0xff;
+          rgba[dst + 2] = (packed >> 16) & 0xff;
+          rgba[dst + 3] = (packed >> 24) & 0xff;
+        } else {
+          const v = packed & 0xff;
+          rgba[dst + 0] = v;
+          rgba[dst + 1] = v;
+          rgba[dst + 2] = v;
+          rgba[dst + 3] = 255;
+        }
+      }
+    }
+
+    stagingBuffer.unmap();
+    readbackTex.destroy();
+    stagingBuffer.destroy();
+
+    const offscreen = new OffscreenCanvas(w, h);
+    const ctx2d = offscreen.getContext('2d')!;
+    ctx2d.putImageData(new ImageData(rgba, w, h), 0, 0);
+    const blob = await offscreen.convertToBlob({ type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('channel-picker')?.addEventListener('click', async (e) => {
+    const btn = (e.target as Element).closest<HTMLButtonElement>('.channel-action-btn');
+    if (!btn) return;
+    const channel = btn.dataset.channel as ChannelValue;
+    const action = btn.dataset.action;
+
+    if (action === 'load') {
+      pendingChannelLoad = channel;
+      openChannelInput?.click();
+    } else if (action === 'save') {
+      if (channel === 'base-color') {
+        await saveChannelTexture(paintTex, 'base-color.png', true);
+      } else if (channel === 'normal') {
+        await saveChannelTexture(normalPaintTex, 'normal.png', true);
+      } else if (channel === 'roughness') {
+        await saveChannelTexture(roughnessPaintTex, 'roughness.png', false);
+      }
     }
   });
 }
@@ -831,17 +939,25 @@ function renderChannelPicker() {
     <div class="channel-picker">
       ${channels
         .map((channel) => `
-          <label class="channel-option">
-            <input
-              type="radio"
-              name="selected-channel"
-              value="${channel.value}"
-              ${channel.value === selectedChannel ? 'checked' : ''}
-            >
-            <span class="channel-option-body">
+          <div class="channel-option">
+            <label class="channel-option-body">
+              <input
+                type="radio"
+                name="selected-channel"
+                value="${channel.value}"
+                ${channel.value === selectedChannel ? 'checked' : ''}
+              >
               <span class="channel-name">${channel.label}</span>
-            </span>
-          </label>
+            </label>
+            <div class="channel-actions">
+              <button class="channel-action-btn" data-channel="${channel.value}" data-action="load" type="button" aria-label="Load ${channel.label}">
+                <img src="assets/blender/file_folder.svg" alt="" class="tool-icon">
+              </button>
+              <button class="channel-action-btn" data-channel="${channel.value}" data-action="save" type="button" aria-label="Save ${channel.label}">
+                <img src="assets/blender/file_tick.svg" alt="" class="tool-icon">
+              </button>
+            </div>
+          </div>
         `)
         .join('')}
     </div>

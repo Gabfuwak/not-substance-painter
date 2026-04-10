@@ -14,11 +14,9 @@
           <button class="tool-utility-button" id="open-model-button" type="button" aria-label="Open file">
             <img src="assets/blender/file_folder.svg" alt="" class="tool-icon">
           </button>
-          <button class="tool-utility-button" id="save-model-button" type="button" aria-label="Save file">
-            <img src="assets/blender/file_tick.svg" alt="" class="tool-icon">
-          </button>
         </div>
-        <input id="open-model-input" type="file" accept=".obj,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,model/obj,text/plain" hidden>
+        <input id="open-model-input" type="file" accept=".obj" hidden>
+        <input id="open-channel-input" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" hidden>
         <div class="tool-divider" aria-hidden="true"></div>
         <button class="tool-button" type="button" aria-label="Move tool" aria-pressed="false" data-tool="move">
           <img src="assets/blender/ops.transform.translate.svg" alt="" class="tool-icon">
