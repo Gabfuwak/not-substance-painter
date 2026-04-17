@@ -470,7 +470,7 @@ async function main() {
 
   function changeBrushSize(delta: number) {
     brushControlValues.size = Math.min(1, Math.max(0, brushControlValues.size + delta));
-    renderSubtoolPanel();
+    renderBrushOptionsPanel();
   }
 
 
@@ -511,7 +511,7 @@ async function main() {
     uniformTailData[4] = channelMode;
     device.queue.writeBuffer(uniformBuffer, 64, uniformTailData);
 
-    brushState.radius = 0.005 + brushControlValues.size * 0.195;
+    brushState.radius = 0.002 + brushControlValues.size * 0.06;
 
     brushData[0] = brushState.uvX;   brushData[1] = brushState.uvY;
     brushData[2] = brushState.radius; brushData[3] = brushState.on;
@@ -603,6 +603,7 @@ async function main() {
     brushState.r = parseInt(hex.slice(1, 3), 16) / 255;
     brushState.g = parseInt(hex.slice(3, 5), 16) / 255;
     brushState.b = parseInt(hex.slice(5, 7), 16) / 255;
+    renderBrushOptionsPanel();
   });
 
   openModelButton?.addEventListener('click', () => {
@@ -785,6 +786,13 @@ function renderBrushOptionsPanel() {
     return;
   }
 
+  const color = (document.getElementById('brush-color') as HTMLInputElement | null)?.value ?? '#cc4d1a';
+  const previewSize = brushControlValues.size;
+  const previewOpacity = brushControlValues.strength;
+  // Max circle diameter in px within the preview area
+  const maxDiam = 80;
+  const diam = Math.max(4, Math.round(previewSize * maxDiam));
+
   brushOptionsPanel.innerHTML = `
     <div class="brush-options" aria-label="Brush options">
       ${brushOptions
@@ -804,6 +812,12 @@ function renderBrushOptionsPanel() {
           </div>
         `)
         .join('')}
+    </div>
+    <div class="brush-preview" aria-hidden="true">
+      <div
+        class="brush-preview-circle"
+        style="width:${diam}px;height:${diam}px;background:${color};opacity:${previewOpacity.toFixed(3)};"
+      ></div>
     </div>
   `;
 }

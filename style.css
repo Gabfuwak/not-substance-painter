@@ -32,7 +32,7 @@ body {
     radial-gradient(circle at top, rgba(76, 127, 184, 0.16), transparent 34%),
     linear-gradient(180deg, #10161f 0%, var(--bg) 100%);
   color: var(--ink);
-  font-family: "mononoki", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "Liberation Mono", monospace;
   font-size: 15px;
 }
 
@@ -239,30 +239,16 @@ body {
 #brush-panel,
 #channels-panel {
   min-height: 0;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--panel) 98%, #182130), var(--panel));
+  background: var(--panel);
   overflow: hidden;
 }
 
-#brush-panel,
-#channels-panel {
-  padding: 0;
-}
-
-.panel-section {
-  padding: 24px 20px 28px;
-}
-
-.panel-well {
-  border: 1px solid color-mix(in srgb, var(--line) 88%, black);
-  border-radius: 20px;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--panel) 99%, #172130), color-mix(in srgb, var(--panel) 96%, #0d131b));
+#brush-panel {
+  border-top: 1px solid var(--line);
 }
 
 .panel-well-header {
-  padding: 24px 20px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, black);
 }
 
@@ -476,4 +462,19 @@ body {
 #brush-color::-webkit-color-swatch {
   border: none;
   border-radius: 50%;
+}
+
+.brush-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, black);
+  background: repeating-conic-gradient(#1a1e24 0% 25%, #22272f 0% 50%) 0 0 / 12px 12px;
+}
+
+.brush-preview-circle {
+  border-radius: 50%;
+  pointer-events: none;
+  flex-shrink: 0;
 }
