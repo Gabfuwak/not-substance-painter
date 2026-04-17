@@ -218,16 +218,67 @@ async function main() {
   let roughnessMergeBindGroup: GPUBindGroup;
 
 
+  // --- Undo ---
+  const UNDO_MAX = 20;
+  const undoStacks: { 'base-color': GPUTexture[], 'normal': GPUTexture[], 'roughness': GPUTexture[] } = {
+    'base-color': [], 'normal': [], 'roughness': [],
+  };
+  const undoButton = document.getElementById('undo-button') as HTMLButtonElement | null;
+
+  function syncUndoButton() {
+    const key = selectedChannel === 'normal' ? 'normal' : selectedChannel === 'roughness' ? 'roughness' : 'base-color';
+    if (undoButton) undoButton.disabled = undoStacks[key].length === 0;
+  }
+
+  function clearUndoStack(key: 'base-color' | 'normal' | 'roughness') {
+    for (const snap of undoStacks[key]) snap.destroy();
+    undoStacks[key] = [];
+    syncUndoButton();
+  }
+
+  onChannelChange = syncUndoButton;
+
+  function snapshotForUndo(tex: GPUTexture, key: 'base-color' | 'normal' | 'roughness') {
+    const stack = undoStacks[key];
+    // evict oldest if at cap
+    if (stack.length >= UNDO_MAX) stack.shift()!.destroy();
+    const snap = device.createTexture({
+      size: [tex.width, tex.height],
+      format: 'r32uint',
+      usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
+    });
+    const enc = device.createCommandEncoder();
+    enc.copyTextureToTexture({ texture: tex }, { texture: snap }, [tex.width, tex.height]);
+    device.queue.submit([enc.finish()]);
+    stack.push(snap);
+    syncUndoButton();
+  }
+
+  function undo() {
+    const key = selectedChannel === 'normal' ? 'normal' : selectedChannel === 'roughness' ? 'roughness' : 'base-color';
+    const stack = undoStacks[key];
+    const snap = stack.pop();
+    if (!snap) return;
+    const tex = key === 'normal' ? normalPaintTex : key === 'roughness' ? roughnessPaintTex : paintTex;
+    const enc = device.createCommandEncoder();
+    enc.copyTextureToTexture({ texture: snap }, { texture: tex }, [snap.width, snap.height]);
+    device.queue.submit([enc.finish()]);
+    snap.destroy();
+    syncUndoButton();
+  }
+
   function dispatchMerge() {
+    // snapshot before committing the stroke
+    const key = selectedChannel === 'normal' ? 'normal' : selectedChannel === 'roughness' ? 'roughness' : 'base-color';
+    const tex = key === 'normal' ? normalPaintTex : key === 'roughness' ? roughnessPaintTex : paintTex;
+    snapshotForUndo(tex, key);
+
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginComputePass();
     pass.setPipeline(mergePipeline);
     const bg = selectedChannel === 'normal'     ? normalMergeBindGroup
              : selectedChannel === 'roughness'  ? roughnessMergeBindGroup
              : mergeBindGroup;
-    const tex = selectedChannel === 'normal'    ? normalPaintTex
-              : selectedChannel === 'roughness' ? roughnessPaintTex
-              : paintTex;
     pass.setBindGroup(0, bg);
     pass.dispatchWorkgroups(Math.ceil(tex.width / 8), Math.ceil(tex.height / 8));
     pass.end();
@@ -402,7 +453,7 @@ async function main() {
     paintTex = device.createTexture({
       size: [width, height],
       format: 'r32uint',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
     });
     device.queue.writeTexture(
       { texture: paintTex },
@@ -424,7 +475,7 @@ async function main() {
   normalPaintTex = device.createTexture({
     size: [normalTexW, normalTexH],
     format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
   });
   device.queue.writeTexture(
     { texture: normalPaintTex },
@@ -437,7 +488,7 @@ async function main() {
   roughnessPaintTex = device.createTexture({
     size: [roughnessTexW, roughnessTexH],
     format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
   });
   device.queue.writeTexture(
     { texture: roughnessPaintTex },
@@ -610,6 +661,15 @@ async function main() {
     openModelInput?.click();
   });
 
+  undoButton?.addEventListener('click', () => undo());
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+    }
+  });
+
   openModelInput?.addEventListener('change', async () => {
     const file = openModelInput.files?.[0];
     if (!file) return;
@@ -632,24 +692,27 @@ async function main() {
       const bitmap = await createImageBitmap(file);
       const { data, width, height } = imageToPackedR32(bitmap);
       if (pendingChannelLoad === 'base-color') {
+        clearUndoStack('base-color');
         refreshSurfaceResources(data, width, height);
       } else if (pendingChannelLoad === 'normal') {
         normalPaintTex?.destroy();
         normalPaintTex = device.createTexture({
           size: [width, height],
           format: 'r32uint',
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
         });
         device.queue.writeTexture({ texture: normalPaintTex }, data, { bytesPerRow: width * 4 }, [width, height]);
+        clearUndoStack('normal');
         rebuildBindGroups();
       } else if (pendingChannelLoad === 'roughness') {
         roughnessPaintTex?.destroy();
         roughnessPaintTex = device.createTexture({
           size: [width, height],
           format: 'r32uint',
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
+          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
         });
         device.queue.writeTexture({ texture: roughnessPaintTex }, data, { bytesPerRow: width * 4 }, [width, height]);
+        clearUndoStack('roughness');
         rebuildBindGroups();
       }
     } catch (error) {
@@ -942,6 +1005,7 @@ const channels = [
 type ChannelValue = (typeof channels)[number]['value'];
 
 let selectedChannel: ChannelValue = channels[0].value;
+let onChannelChange: (() => void) | null = null;
 const channelPicker = document.querySelector<HTMLDivElement>('#channel-picker');
 
 function renderChannelPicker() {
@@ -987,4 +1051,5 @@ channelPicker?.addEventListener('change', (event) => {
   }
 
   selectedChannel = input.value as ChannelValue;
+  onChannelChange?.();
 });

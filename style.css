@@ -122,6 +122,12 @@ body {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
 }
 
+.tool-utility-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
 .tool-utility-button:hover {
   background: color-mix(in srgb, #2c4b69 72%, var(--accent));
   border-color: color-mix(in srgb, var(--pen-sepia) 55%, var(--accent));
