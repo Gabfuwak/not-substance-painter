@@ -1053,3 +1053,168 @@ channelPicker?.addEventListener('change', (event) => {
   selectedChannel = input.value as ChannelValue;
   onChannelChange?.();
 });
+
+// =============================================================================
+// Pie / ring tool selector (right-click on either canvas)
+// =============================================================================
+
+const pieMenuEl = document.getElementById('pie-menu')!;
+
+// The three tools in the ring, positioned at top, bottom-left, bottom-right
+const pieItems: { tool: ToolOption; label: string; icon: string; angleDeg: number }[] = [
+  { tool: 'move',   label: 'Pan',    icon: 'assets/blender/ops.transform.translate.svg', angleDeg: -90 },
+  { tool: 'brush',  label: 'Brush',  icon: 'assets/blender/brush.generic.svg',           angleDeg: 150 },
+  { tool: 'orbit',  label: 'Orbit',  icon: 'assets/blender/ops.transform.rotate.svg',    angleDeg: 30  },
+];
+
+const PIE_OUTER = 80;
+const PIE_INNER = 32;
+const PIE_LABEL_R = 100; // label radius from center
+
+let pieOrigin: { x: number; y: number } | null = null;
+let pieHovered: ToolOption | null = null;
+
+function sectorPath(angleDeg: number, spreadDeg: number, inner: number, outer: number): string {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const a0 = toRad(angleDeg - spreadDeg / 2);
+  const a1 = toRad(angleDeg + spreadDeg / 2);
+  const cos0 = Math.cos(a0), sin0 = Math.sin(a0);
+  const cos1 = Math.cos(a1), sin1 = Math.sin(a1);
+  return [
+    `M ${inner * cos0} ${inner * sin0}`,
+    `L ${outer * cos0} ${outer * sin0}`,
+    `A ${outer} ${outer} 0 0 1 ${outer * cos1} ${outer * sin1}`,
+    `L ${inner * cos1} ${inner * sin1}`,
+    `A ${inner} ${inner} 0 0 0 ${inner * cos0} ${inner * sin0}`,
+    'Z',
+  ].join(' ');
+}
+
+function renderPieMenu() {
+  const spread = 360 / pieItems.length - 6; // gap between sectors
+  const cx = PIE_OUTER + PIE_LABEL_R;
+  const cy = PIE_OUTER + PIE_LABEL_R;
+  const size = (PIE_OUTER + PIE_LABEL_R) * 2;
+
+  const sectors = pieItems.map(item => {
+    const rad = (item.angleDeg * Math.PI) / 180;
+    const lx = cx + PIE_LABEL_R * Math.cos(rad);
+    const ly = cy + PIE_LABEL_R * Math.sin(rad);
+    const ix = cx + ((PIE_INNER + PIE_OUTER) / 2) * Math.cos(rad);
+    const iy = cy + ((PIE_INNER + PIE_OUTER) / 2) * Math.sin(rad);
+    const isHovered = pieHovered === item.tool;
+    return `
+      <g transform="translate(${cx},${cy})">
+        <path
+          class="pie-sector-path"
+          d="${sectorPath(item.angleDeg, spread, PIE_INNER, PIE_OUTER)}"
+          fill="${isHovered
+            ? 'color-mix(in srgb, var(--panel) 40% , var(--accent))'
+            : 'color-mix(in srgb, var(--panel) 85%, var(--line))'}"
+          stroke="${isHovered
+            ? 'color-mix(in srgb, var(--accent) 70%, var(--line))'
+            : 'var(--line)'}"
+          stroke-width="1.5"
+        />
+      </g>
+      <image href="${item.icon}" x="${ix - 11}" y="${iy - 11}" width="22" height="22"
+        style="opacity:${isHovered ? 1 : 0.6};filter:${isHovered ? 'brightness(2)' : 'brightness(1.2)'}"/>
+      <text x="${lx}" y="${ly}"
+        text-anchor="middle" dominant-baseline="middle"
+        font-size="10" font-weight="${isHovered ? 700 : 500}"
+        font-family="inherit" letter-spacing="0.04em" text-transform="uppercase"
+        fill="${isHovered ? 'var(--ink)' : 'var(--muted)'}"
+        style="text-transform:uppercase;user-select:none"
+      >${item.label}</text>
+    `;
+  }).join('');
+
+  pieMenuEl.innerHTML = `
+    <div class="pie-ring" style="width:${size}px;height:${size}px;">
+      <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+        ${sectors}
+        <circle cx="${cx}" cy="${cy}" r="${PIE_INNER - 2}"
+          fill="var(--panel)" stroke="var(--line)" stroke-width="1.5"/>
+      </svg>
+    </div>
+  `;
+}
+
+function openPieMenu(x: number, y: number) {
+  pieOrigin = { x, y };
+  pieHovered = null;
+  pieMenuEl.hidden = false;
+  pieMenuEl.removeAttribute('aria-hidden');
+  renderPieMenu();
+  pieMenuEl.style.left = `${x}px`;
+  pieMenuEl.style.top  = `${y}px`;
+}
+
+function closePieMenu() {
+  pieMenuEl.hidden = true;
+  pieMenuEl.setAttribute('aria-hidden', 'true');
+  pieOrigin = null;
+  pieHovered = null;
+}
+
+function getPieHovered(cx: number, cy: number, mx: number, my: number): ToolOption | null {
+  const dx = mx - cx;
+  const dy = my - cy;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 10) return null; // too close to center, no selection
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  // find closest sector
+  let best: ToolOption | null = null;
+  let bestDiff = Infinity;
+  for (const item of pieItems) {
+    let diff = Math.abs(angleDeg - item.angleDeg);
+    if (diff > 180) diff = 360 - diff;
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = item.tool;
+    }
+  }
+  return best;
+}
+
+// Block native context menu on both canvases
+for (const canvas of [
+  document.getElementById('object-canvas'),
+  document.getElementById('uv-canvas'),
+]) {
+  canvas?.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+window.addEventListener('mousedown', (e) => {
+  if (e.button !== 2) return;
+  const target = e.target as HTMLElement;
+  const onCanvas = target.closest('#object-canvas, #uv-canvas');
+  if (!onCanvas) return;
+  e.preventDefault();
+  openPieMenu(e.clientX, e.clientY);
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!pieOrigin) return;
+  const cx = pieOrigin.x;
+  const cy = pieOrigin.y;
+  const hovered = getPieHovered(cx, cy, e.clientX, e.clientY);
+  if (hovered !== pieHovered) {
+    pieHovered = hovered;
+    renderPieMenu();
+  }
+});
+
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 2 || !pieOrigin) return;
+  if (pieHovered) {
+    selectedTool = pieHovered;
+    syncSelectedTool();
+  }
+  closePieMenu();
+});
+
+// Close on Escape
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && pieOrigin) closePieMenu();
+});
